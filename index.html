@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>Severák's Graph Paper</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/uboot.css">
+    <link rel="stylesheet" href="css/gh-fork-ribbon.css">
+    <meta property="og:title" content="Severák's Graph Paper" />
+    <meta property="og:image" content="https://severak.github.io/cyber-music-studio/img/preview.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:description" content="not your usual DAW" />
+    <script>if(!sessionStorage.getItem("_swa")&&document.referrer.indexOf(location.protocol+"//"+location.host)!== 0){fetch("https://counter.dev/track?"+new URLSearchParams({referrer:document.referrer,screen:screen.width+"x"+screen.height,user:"severak",utcoffset:"1"}))};sessionStorage.setItem("_swa","1");</script>
+    <script src="js/uboot.js"></script>
+    <style>
+        body {
+            font-family: "Lucida Console", monospace;
+            background: url("img/beta.jpg") #000 no-repeat fixed top center/cover;
+        }
+
+        .ub-box {
+            background-color: lightyellow;
+            padding: 1em;
+        }
+
+        a { color: black; text-decoration-style: dashed; }
+
+        .ub-container {
+            max-width: 60em !important;
+        }
+    </style>
+</head>
+<body>
+
+<a class="github-fork-ribbon" href="https://github.com/severak/graph-paper" data-ribbon="Fork me on GitHub" title="Fork me on GitHub">Fork me on GitHub</a>
+
+<div class="ub-container">
+    <div class="ub-box">
+        <h1>Graph Paper</h1>
+        <canvas id="paper" width="640" height="480"></canvas>
+        <form>
+            <textarea rows="30" cols="80" id="inp">
+# cassete model
+# okraje
+L 0 0 100 0
+L 0 0 0 60
+L 100 0 100 60
+L 0 60 100 60
+# hlavni kolecka
+C 29.25 28.747 5
+C 70.75 28.747 5
+# vnejsi ramecek
+L 6 5.5 94 5.5
+L 6 45 94 45
+L 6 5.5 6 45
+L 94 5.5 94 45
+# prostredni ramecek
+
+
+# kolecka v rozich
+C 3 3 2.5
+C 3 3 2
+C 97 3 2.5
+C 97 3 2
+C 3 57 2.5
+C 3 57 2
+C 97 57 2.5
+C 97 57 2
+
+
+            </textarea>
+        </form>
+    </div>
+</div>
+
+<script>
+function redraw() {
+    var paper = document.getElementById('paper');
+    var lines = document.getElementById('inp').value.split('\n');
+    var ctx = paper.getContext('2d');
+    var pxunit = 5;
+
+    ctx.clearRect(0, 0, paper.width, paper.height);
+
+    // TODO - čtverečkové pozadí
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        if (line[0]=='#') {
+            // preskakujeme
+        } else {
+            let params = line.trim().split(' ');
+            // console.log(params);
+
+            if (params[0]=='line-width:') {
+                ctx.lineWidth = params[1];
+            }
+            if (params[0]=='zoom:') {
+                pxunit = params[1];
+            }
+            if (params[0]=='L') {
+                ctx.beginPath();
+                ctx.moveTo(params[1] * pxunit, params[2] * pxunit);
+                ctx.lineTo(params[3] * pxunit, params[4] * pxunit);
+                ctx.closePath();
+                ctx.stroke();
+            }
+            if (params[0]=='C') {
+                ctx.beginPath();
+                ctx.ellipse(params[1] * pxunit, params[2] * pxunit, params[3] * pxunit, params[3] * pxunit, 0, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+            if (params[0]=='X') {
+                ctx.beginPath();
+                ctx.ellipse(params[1] * pxunit, params[2] * pxunit, 3 * pxunit, 3 * pxunit, 0, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+    }
+}
+
+ub.whenReady(function () {
+   redraw();
+
+   ub.on('inp', 'change', function () {
+      redraw();
+   });
+});
+</script>
+
+</body>
+</html>
+
