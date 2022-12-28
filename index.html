@@ -114,6 +114,7 @@ function redraw() {
                 ctx.stroke();
             }
             if (params[0]=='X') {
+                // todo - this is just point drawing but somewhat obfuscated
                 ctx.beginPath();
                 ctx.ellipse(params[1] * pxunit, params[2] * pxunit, 3 * pxunit, 3 * pxunit, 0, 0, 2 * Math.PI);
                 ctx.fill();
