@@ -98,6 +98,9 @@ function redraw() {
             if (params[0]=='zoom:') {
                 pxunit = params[1];
             }
+            if (params[0]=='P') {
+                ctx.fillRect((params[1] * pxunit)-2, (params[2] * pxunit)-2, 4, 4);
+            }
             if (params[0]=='L') {
                 ctx.beginPath();
                 ctx.moveTo(params[1] * pxunit, params[2] * pxunit);
