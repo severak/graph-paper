@@ -2,7 +2,9 @@
 -- (c) Severák 2023
 -- MIT licensed
 
--- This code tracks your units and converts them automatically so your Mars Climate Orbiter does not crash. Or it crashes even more because of unit conversion errors below:
+-- This code tracks your units and converts them automatically so your Mars Climate Orbiter does not crash
+--
+-- (or it crashes even more because of unit conversion errors below:)
 -- 
 -- Strongly inspired by Frink language (https://frinklang.org/).
 
@@ -12,6 +14,8 @@ local units_meta = {}
 units.size = {}
 units.type = {}
 units.base = {}
+units.alias = {}
+units.description = {}
 
 function units.dim(value, unit)
     assert(units.size[unit], "Unknown unit " .. unit .. "!")
@@ -21,6 +25,9 @@ end
 function units.is_unit(val)
     return type(val)=="table" and getmetatable(val)==units_meta
 end
+
+-- TODO: units.conforms(a,b)
+-- TODO units.convert_value(val)
 
 function units.convert(val, unit)
     assert(units.size[unit], "Unknown target unit " .. unit .. "!")
@@ -111,6 +118,7 @@ function units.define(def)
     if def.size==1 then
         units.base[def.type] = def.name
     end
+    -- TODO if def.alias
     if def.SI_prefixes then
         def.SI_dimension = def.SI_dimension or 1
 
@@ -135,6 +143,9 @@ function units.define(def)
         end 
     end
 end
+
+-- c = a * b
+-- TODO: units.relate(a, b, c)
 
 -- pollutes _G with definited units, dim and convert functions
 function units.import_globals()
@@ -174,9 +185,9 @@ units.define{name="year", size=units.size.day * 365, type="time"}
 
 -- MASS
 units.define{name="g", size=1, type="mass", SI_prefixes=true}
-units.base.mass = "kg" -- this is retarded
+units.base.mass = "kg" -- base unit for weight is kilogram, but it got prefix
 
-units.define{name="lb", size=0.45359237, type="mass"} -- pound
+units.define{name="lb", size=units.size.kg * 0.45359237, type="mass"} -- pound
 units.define{name="oz", size=units.size.lb * 1/16, type="mass"} -- ounce
 units.define{name="t", size=units.size.kg * 1000, type="mass"} -- metric ton
 
@@ -212,9 +223,96 @@ units.define{name="Pib", size=2^40, type="information"}
 
 -- LUMINOUS INTENSITY (CANDELA)
 
--- TODO - define this
+-- TODO - define these
 
---- derived units:
+--- derived units: (BIG TODO)
+
+--[[
+1   ||| dimensionless
+
+m^2 ||| area
+m^3 ||| volume
+
+s^-1   ||| frequency
+
+m s^-1 ||| velocity
+m s^-2 ||| acceleration
+m kg s^-1 ||| momentum
+
+m kg s^-2    ||| force
+m^2  kg s^-3 ||| power
+m^-1 kg s^-2 ||| pressure
+m^2  kg s^-2 ||| energy
+m^2  kg s^-1 ||| angular_momentum
+m^2  kg      ||| moment_of_inertia
+
+m^3 s^-1     ||| flow
+
+m^-3 kg      ||| mass_density
+m^3  kg^-1   ||| specific_volume         // Reciprocal of mass_density
+
+A m^-2       ||| electric_current_density
+
+dollar kg^-1 ||| price_per_mass
+
+newton :=              kg m / s^2  // force
+N :=                   newton
+pascal :=              N/m^2       // pressure or stress
+Pa :=                  pascal
+joule :=               N m         // energy
+J :=                   joule
+watt :=                J/s         // power
+W :=                   watt
+
+J m^-2  ||| surface_tension
+
+coulomb :=             A s         // charge
+coulomb ||| charge
+coulomb m^-2 ||| surface_charge_density
+coulomb m^-3 ||| electric_charge_density
+C :=                   coulomb
+
+volt :=                W/A         // potential difference
+V :=                   volt
+volt ||| electric_potential
+V / m   ||| electric_field_strength
+A / m   ||| magnetic_field_strength
+
+ohm :=                 V/A         // electrical resistance
+\u2126 :=              ohm  // Official Unicode codepoint OHM SIGN
+\u03a9 :=              ohm  // "Preferred" Unicode codepoint for ohm
+                            // GREEK CAPITAL LETTER OMEGA
+ohm ||| electric_resistance
+
+siemens :=             A/V         // electrical conductance
+S :=                   siemens
+siemens ||| electric_conductance
+
+farad :=               C/V         // capacitance
+farad ||| capacitance
+
+F :=                   farad
+uF :=                  microfarad  // Concession to electrical engineers
+                                   // without adding the questionable "u"
+                                   // as a general prefix.
+
+weber :=               V s         // magnetic flux
+weber ||| magnetic_flux
+Wb :=                  weber
+
+henry :=               Wb/A        // inductance
+henry ||| inductance
+henries :=             henry       // Irregular plural
+H :=                   henry
+
+tesla :=               Wb/m^2      // magnetic flux density
+tesla ||| magnetic_flux_density
+T :=                   tesla
+
+hertz :=               s^-1        // frequency
+Hz :=                  hertz
+]]
+
 -- AREA
 units.define{name="m2", size=1, type="area", SI_prefixes=true, SI_dimension=2}
 
@@ -223,5 +321,9 @@ units.define{name="m3", size=1, type="volume", SI_prefixes=true, SI_dimension=3}
 units.define{name="l", size=1/1000, type="volume", SI_prefixes=true}
 
 -- TODO - http://www.geneze.info/pojmy/subdir/stare_ceske_jednotky.htm, http://www.jankopa.cz/wob/PH_001.html a https://plzen.rozhlas.cz/loket-pid-nebo-latro-znate-stare-miry-a-vahy-6737273
+
+-- TODO - musical units - BPM, PPQN
+
+-- TODO - asserts to check if logic is not broken by some code mistakes above
 
 return units
