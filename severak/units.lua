@@ -26,6 +26,9 @@ units.alias = {}
 -- human-readable description of unit
 units.description = {}
 
+-- explicit conversion for problematic units
+units.explicit_convert = {}
+
 -- format of units when calling tonstring(unit)
 units.format_string = "%.10g %s"
 
@@ -50,11 +53,24 @@ function units.convert_value(val, unit)
 end
 
 function units.convert(val, unit)
+    if units.alias[unit] then
+        unit = units.alias[unit]
+    end
+    assert(units.is_unit(val), "Only units can be converted!")
     assert(units.size[unit], "Unknown target unit " .. unit .. "!")
+
+    if units.explicit_convert[val.unit] then
+        local try = units.explicit_convert[val.unit](val, unit)
+        if try then
+            return try
+        end
+    end
+
     assert(units.type[val.unit]==units.type[unit], "Cannot convert to different type of unit!")
     if val.unit==unit then
         return val -- target unit same as source unit
     end
+
     return units.dim(units.convert_value(val, unit),  unit)
 end
 
@@ -163,6 +179,10 @@ function units.define(def)
 
     if def.description then
         units.description[def.name] = def.description
+    end
+
+    if def.explicit_convert then
+        units.explicit_convert[def.name] = def.explicit_convert
     end
     
     if def.alias then
@@ -274,9 +294,34 @@ units.define{name="ozt", size=units.size.g * 31.10, alias={"oz t"}, type="mass"}
 units.define{name="A", size=1, type="current", SI_prefixes=true} -- ampere
 
 -- TEMPERATURE
-units.define{name="K", size=1, type="temperature"} -- kelvin
+local fromK = function(val, unit)
+    if unit=='C' then return units.dim(val.value - 273.15, "C") end
+    if unit=='F' then return units.dim(1.8 * val.value - 459.67, "F") end
+    if unit=='R' then return units.dim(1.8 * val.value, "R") end
+end
 
--- TODO define F and C and conversions
+units.define{name="K", size=1, type="temperature", description="Kelvin", explicit_convert=fromK}
+units.define{name="R", alias={"°R"}, size=5/9, type="temperature", description="Rankine"}
+
+-- as Farenheit and Celsius do not have same 0, we don't want to automatically convert between those and you need to convert them explicitly
+
+-- see https://en.wikipedia.org/wiki/Celsius
+local fromC = function(val, unit) 
+    if unit=='K' then return units.dim(val.value + 273.15, "K") end
+    if unit=='R' then return units.dim((val.value +  273.15) * (9/5), "R") end
+    if unit=='F' then return units.dim((val.value * (9/5)) + 32, "F") end
+end
+
+units.define{name="C", alias={"°C"}, size=1, type="temperature_celsius", explicit_convert=fromC}
+
+-- see https://en.wikipedia.org/wiki/Fahrenheit
+local fromF = function(val, unit)
+    if unit=='C' then return units.dim((val.value - 32) * (5/9), "C") end
+    if unit=='K' then return units.dim((val.value + 459.67) * (5/9), "K") end
+    if unit=='R' then return units.dim(val.value + 459.67, "R") end
+end
+
+units.define{name="F", alias={"°F"}, size=1, type="temperature_farenheit", explicit_convert=fromF}
 
 -- AMOUNT OF SUBSTANCE (MOL) TODO
 
