@@ -207,9 +207,20 @@ function units.import_globals()
     for unit, trueSize in pairs(units.alias) do
         _G[unit] = _G[trueSize]
     end
+
     _G.dim = units.dim
     _G.convert = units.convert
     _G.to = units.convert
+
+    -- defines % operator for unit conversion
+    units_meta.__mod = function(a, b)
+        if units.is_unit(a) and units.is_unit(b) then
+            return units.convert(a, b.unit)
+        elseif units.is_unit(a) and type(b)=="string" then
+            return units.convert(a, b)
+        end
+        error("Conversion is not posssible.")
+    end
 end
 
 -- UNIT DEFINITIONS
