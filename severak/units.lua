@@ -164,6 +164,9 @@ function units_meta.__div(a, b)
     if units.is_unit(b) and tonumber(a) then
         return units.dim(b.value / tonumber(a), b.unit)
     end
+    if units.conforms(a, b) then
+        return units.convert_value(a, b.unit) / b.value
+    end
 
     error("Division by other unit not yet implemented.")
 end
