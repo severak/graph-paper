@@ -62,8 +62,13 @@ stack traceback:
         .\severak\units.lua:119: in metamethod '__add'
         stdin:1: in main chunk
         [C]: in ?
->
 ```
+
+Some arithmetics is not yet implemented - multiplying units with other units etc.
+
+## units conversion
+
+Use `units.convert(val, unit)` to convert your `val` to specific `unit`.
 
 ## functions reference
 
