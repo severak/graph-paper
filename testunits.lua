@@ -3,10 +3,24 @@ local dim = units.dim
 dim = units.dim
 units.import_globals()
 
-print(to(50 * 25 * 2.5 * m3, "hl"))
-os.exit()
+function dump(o)
+    if type(o) == 'table' then
+       local s = '{ '
+       for k,v in pairs(o) do
+          if type(k) ~= 'number' then k = '"'..k..'"' end
+          s = s .. '['..k..'] = ' .. dump(v) .. ','
+       end
+       return s .. '} '
+    else
+       return tostring(o)
+    end
+ end
 
-print ""
+print((40*km) / (40*min))
+print((1*km)/h)
+print((100*km)/(120*km_h))
+print(((100*h)/(120*km_h)))
+os.exit()
 
 print "Conversion table"
 print "----------------"

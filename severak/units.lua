@@ -29,6 +29,9 @@ units.description = {}
 -- explicit conversion for problematic units
 units.explicit_convert = {}
 
+-- unit relations for multiplying and division
+units.relations = {}
+
 -- format of units when calling tonstring(unit)
 units.format_string = "%.10g %s"
 
@@ -146,6 +149,23 @@ function units_meta.__sub(a, b)
     return units.dim(a.value - b.value, a.unit)
 end
 
+function find_multiplication_relations(a, b)
+    for _, rel in ipairs(units.relations) do
+        if a.unit==rel.a and b.unit==rel.b then
+            return rel
+        end
+        if a.unit==rel.b and b.unit==rel.a then
+            return rel
+        end
+        if units.type[a.unit]==units.type[rel.a] and units.type[b.unit]==units.type[rel.b] then
+            return rel
+        end
+        if units.type[a.unit]==units.type[rel.b] and units.type[b.unit]==units.type[rel.a] then
+            return rel
+        end
+    end
+end
+
 function units_meta.__mul(a, b)
     if units.is_unit(a) and tonumber(b) then
         return units.dim(a.value * tonumber(b), a.unit)
@@ -154,7 +174,38 @@ function units_meta.__mul(a, b)
         return units.dim(b.value * tonumber(a), b.unit)
     end
 
-    error("Multiplication by other unit not yet implemented.")
+    if units.is_unit(a) and units.is_unit(b) then
+        local relation = find_multiplication_relations(a, b)
+        if relation then
+            return units.dim(units.convert_value(a, relation.a) * units.convert_value(b, relation.b), relation.c)
+        end
+        error('Multiplication for ' .. a.unit .. ' and ' .. b.unit .. ' is not defined.')
+    end
+
+    error("Multiplication of units by something else is not defined.")
+end
+
+function find_division_relations(c, a_b)
+    -- finds either a = c / b or b = c / a
+    for _, rel in ipairs(units.relations) do
+        -- a = c / b
+        if c.unit==rel.c and a_b.unit==rel.b then
+            return rel, "b"
+        end
+        -- b = c / a
+        if c.unit==rel.c and a_b.unit==rel.a then
+            return rel, "a"
+        end
+        -- same for conformals
+        -- a = c / b
+        if units.type[c.unit]==units.type[rel.c] and units.type[a_b.unit]==units.type[rel.b] then
+            return rel, "b"
+        end
+        -- b = c / a
+        if units.type[c.unit]==units.type[rel.c] and units.type[a_b.unit]==units.type[rel.a] then
+            return rel, "a"
+        end
+    end
 end
 
 function units_meta.__div(a, b)
@@ -167,8 +218,21 @@ function units_meta.__div(a, b)
     if units.conforms(a, b) then
         return units.convert_value(a, b.unit) / b.value
     end
+    if units.is_unit(a) and units.is_unit(b) then
+        local relation, div_by = find_division_relations(a, b)
+        if relation then
+            if div_by=='a' then
+                -- b = c / a
+                return units.dim(units.convert_value(a, relation.c) / units.convert_value(b, relation.a), relation.b)
+            else
+                -- a = c / b
+                return units.dim(units.convert_value(a, relation.c) / units.convert_value(b, relation.b), relation.a)
+            end
+        end
+        error('Division of ' .. a.unit .. ' by ' .. b.unit .. ' is not defined.')
+    end
 
-    error("Division by other unit not yet implemented.")
+    error("Division of units by something else is not defined.")
 end
 
 function units.define(def)
@@ -219,8 +283,13 @@ function units.define(def)
     end
 end
 
--- c = a * b
--- TODO: units.relate(a, b, c)
+-- adds relation c = a * b
+-- where a = c / b and b = c / a are also valid
+function units.relate(a, b, c)
+    units.relations[#units.relations+1] = {a=a, b=b, c=c}
+end
+
+
 
 -- pollutes _G with definited units, dim and convert functions
 function units.import_globals()
@@ -346,9 +415,11 @@ units.define{name="B", size=8, type="information", SI_prefixes=true}
 
 -- AREA
 units.define{name="m2", alias={"m²"}, size=1, type="area", SI_prefixes=true, SI_dimension=2}
+units.relate('m', 'm', 'm2')
 
 -- VOLUME
 units.define{name="m3", alias={"m³"}, size=1, type="volume", SI_prefixes=true, SI_dimension=3}
+units.relate('m2', 'm', 'm3')
 units.define{name="l", size=units.size.m3 * (1/1000), type="volume", SI_prefixes=true}
 
 units.define{name="barrel", size=units.size.l * 158.987, type="volume"} -- for oil
@@ -359,7 +430,9 @@ units.define{name="Hz", size=1, type="frequency", SI_prefixes=true}
 
 -- VELOCITY (aka SPEED)
 units.define{name="m_s", alias={"m/s"}, size=1, type="velocity"}
+units.relate('m_s', 'm', 's')
 units.define{name="km_h", alias={"km/h"}, size=units.size.km / units.size.h, type="velocity"}
+units.relate('km_h', 'h', 'km')
 units.define{name="mph", size=units.size.mi / units.size.h, type="velocity"}
 units.define{name="mach", size=units.size.m_s * 331.46, type="velocity"} -- for fighter aircraft
 
