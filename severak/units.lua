@@ -395,7 +395,8 @@ end
 
 units.define{name="F", alias={"°F"}, size=1, type="temperature_farenheit", explicit_convert=fromF}
 
--- AMOUNT OF SUBSTANCE (MOL) TODO
+-- AMOUNT OF SUBSTANCE (MOL)
+units.define{name="mol", size=1, type="amount_of_substance"}
 
 -- ANGLE
 units.define{name="turn", size=1, type="angle"} -- I am deviating from official definition to have circle as definition of angle units
@@ -408,10 +409,12 @@ units.define{name="B", size=8, type="information", SI_prefixes=true}
 -- TODO - sort out kiB vs kb etc... 1024-based units are mess
 
 
--- LUMINOUS INTENSITY (CANDELA) -- TODO define
+-- LUMINOUS INTENSITY (CANDELA)
+units.define{name="cd", alias={"candela"}, size=1, type="luminous_intensity"}
 
 --- derived units: 
--- big TODO - https://en.wikipedia.org/wiki/International_System_of_Units
+-- (based on https://en.wikipedia.org/wiki/International_System_of_Units#Derived_units)
+-- (and https://en.wikipedia.org/wiki/File:Physics_measurements_SI_units.png)
 
 -- AREA
 units.define{name="m2", alias={"m²"}, size=1, type="area", SI_prefixes=true, SI_dimension=2}
@@ -420,7 +423,9 @@ units.relate('m', 'm', 'm2')
 -- VOLUME
 units.define{name="m3", alias={"m³"}, size=1, type="volume", SI_prefixes=true, SI_dimension=3}
 units.relate('m2', 'm', 'm3')
+units.define{name="cc", size=units.size.cm3, type="volume"} -- for motocycle engines :-)
 units.define{name="l", size=units.size.m3 * (1/1000), type="volume", SI_prefixes=true}
+
 
 units.define{name="barrel", size=units.size.l * 158.987, type="volume"} -- for oil
 
@@ -435,6 +440,34 @@ units.define{name="km_h", alias={"km/h"}, size=units.size.km / units.size.h, typ
 units.relate('km_h', 'h', 'km')
 units.define{name="mph", size=units.size.mi / units.size.h, type="velocity"}
 units.define{name="mach", size=units.size.m_s * 331.46, type="velocity"} -- for fighter aircraft
+
+-- ACCELERATION
+units.define{name="m_s2", size=1, type="acceleration"} -- (https://en.wikipedia.org/wiki/Metre_per_second_squared) nobody uses this unit as it's hardly measurable 
+units.relate('m_s2', 's', 'm_s') -- I have it there only for Newton definition
+
+-- FORCE
+units.define{name="N", alias={"newton"}, size=1, type="force", SI_prefixes=true}
+units.relate('kg', 'm_s2', 'N')
+
+-- PRESSURE
+units.define{name="Pa", alias={"pascal"}, size=1, type="pressure", SI_prefixes=true}
+units.relate("N", "Pa", "m2")
+units.define{name="bar", size=units.size.kPa*100, type="pressure", SI_prefixes=true}
+units.define{name="atm", alias={"atmosphere"}, size=units.size.kPa*101.325, type="pressure"}
+-- meterologists use mbar, aviators hPa
+
+-- ENERGY
+units.define{name="J", alias={"joule"}, size=1, type="", SI_prefixes=true}
+units.relate("N", "m", "J")
+-- TODO kWh, calorie
+
+-- POWER
+units.define{name="W", alias={"watt"}, size=1, type="", SI_prefixes=true}
+units.relate("W", "s", "J") -- TODO check if this is OK
+
+-- TODO all eletrical units - volts, ohms etc...
+
+-- TODO all radioactive units
 
 -- TODO 
 -- old czech units -  http://www.geneze.info/pojmy/subdir/stare_ceske_jednotky.htm, http://www.jankopa.cz/wob/PH_001.html a https://plzen.rozhlas.cz/loket-pid-nebo-latro-znate-stare-miry-a-vahy-6737273
