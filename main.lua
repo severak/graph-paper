@@ -2,6 +2,7 @@
 -- (c) Severák 2023
 -- MIT licensed
 
+local geom = require "severak.geom"
 local push = table.insert
 
 -- data of our drawing
@@ -20,18 +21,19 @@ local modes = {
     p = 'point', -- adding point
     l = 'line', -- adding lines by two points (or by point, size and another point to set direction)
     r = 'rectangle', -- adding rectangles
-    -- adding circles
+    c = 'circle', -- adding circles
     -- adding arcs
-    -- adding rectangles
     -- adding dims
-    -- measuring from point to point
     -- selecting things
     -- deleting things
     -- move things around
+    d = 'distance', -- measuring from point to point
 }
 
 local mode = 'intro'
 local prev_point = false
+
+local grid_spacing = 20
 
 local is_dos = love.system.getOS()=='DOS' -- cool kids runs their programs on DOS
 if is_dos then
@@ -92,6 +94,20 @@ function load_model(filename, offx, offy, zoom)
     return model
 end
 
+function snap(x, y)
+    if grid_spacing > 0 then
+        local fourth = grid_spacing / 4
+        for ix=0,love.graphics.getWidth(), grid_spacing do
+            for iy=0,love.graphics.getHeight(), grid_spacing do
+                if x>ix-fourth and x<ix+fourth and y>iy-fourth and y<iy+fourth then
+                    return ix, iy
+                end
+            end 
+        end
+    end
+    return x, y
+end
+
 function love.load(args)
     if not is_dos then love.window.setTitle("Graph paper (prototype)") end
     if is_dos then
@@ -110,6 +126,16 @@ function love.update(dt)
 end
 
 function love.draw()
+    -- draw grid
+    if grid_spacing > 0 then
+        love.graphics.setColor(0/255,170/255,170/255)
+        for x=0,love.graphics.getWidth(), grid_spacing do
+            love.graphics.line(x, 0, x, love.graphics.getHeight())    
+        end
+        for y=0,love.graphics.getHeight(), grid_spacing do
+            love.graphics.line(0, y, love.graphics.getWidth(), y)    
+        end
+    end
     
     -- drawing all drawn geometry
     love.graphics.setColor(255/255,255/255,255/255)
@@ -121,6 +147,7 @@ function love.draw()
         elseif item.type=='rectangle' then
             love.graphics.rectangle('line', item.d.x, item.d.y, item.d.w, item.d.h)
         elseif item.type=='circle' then
+            love.graphics.rectangle('line', item.d.x, item.d.y, 1, 1)
             love.graphics.circle('line', item.d.x, item.d.y, item.d.r)
         end
     end
@@ -137,7 +164,18 @@ function love.draw()
         local mouse_x, mouse_y = love.mouse.getPosition()
         love.graphics.rectangle('line', prev_point.x, prev_point.y, mouse_x-prev_point.x, mouse_y-prev_point.y)
     end
-
+    if mode=='circle' and prev_point then
+        local mouse_x, mouse_y = love.mouse.getPosition()
+        love.graphics.rectangle('fill', prev_point.x-1, prev_point.y-1, 3, 3)
+        love.graphics.circle('line', prev_point.x, prev_point.y, geom.distance(prev_point, {x=mouse_x, y=mouse_y}))
+    end
+    if mode=='distance' and prev_point then
+        local mouse_x, mouse_y = love.mouse.getPosition()
+        local mid = geom.midpoint(prev_point, {x=mouse_x, y=mouse_y})
+        love.graphics.line(prev_point.x, prev_point.y, mouse_x, mouse_y)
+        love.graphics.setColor(255/255,255/255,85/255)
+        love.graphics.print(" "..geom.distance(prev_point, {x=mouse_x, y=mouse_y}).." ", mid.x, mid.y)
+    end
 
     -- draw program UI
     love.graphics.setColor(255/255,255/255,85/255)
@@ -154,6 +192,7 @@ function love.draw()
 end
 
 function love.mousereleased(x, y, button)
+    x, y = snap(x, y)
     if mode=='point' then
         push(model, {type='point', d={x=x, y=y}})
     elseif mode=='line' then
@@ -172,6 +211,16 @@ function love.mousereleased(x, y, button)
         else
             prev_point = {x=x, y=y}
         end    
+    elseif mode=='circle' then
+        if prev_point then
+            local mouse_x, mouse_y = love.mouse.getPosition()
+            push(model, {type='circle', d={x=prev_point.x, y=prev_point.y, r=geom.distance(prev_point, {x=mouse_x, y=mouse_y})}})
+            prev_point = false
+        else
+            prev_point = {x=x, y=y}
+        end
+    elseif mode=='distance' then
+        prev_point = {x=x, y=y}
     end
 end
 
@@ -182,6 +231,20 @@ function love.keyreleased(key)
     elseif key=="x" then
         -- deletes all things
         model = {}
+    elseif key=='z' then
+        -- removes last thing
+        table.remove(model)
+    elseif key=='g' then
+        -- cycle trough grid spacings
+        if grid_spacing==0 then 
+            grid_spacing=10
+        elseif grid_spacing==10 then
+            grid_spacing=20
+        elseif grid_spacing==20 then
+            grid_spacing=50
+        elseif grid_spacing==50 then 
+            grid_spacing=0 
+        end
     elseif modes[key] then
         -- switches mode
         mode = modes[key]
