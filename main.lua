@@ -95,8 +95,23 @@ function load_model(filename, offx, offy, zoom)
 end
 
 function snap(x, y)
+    -- TODO - snapping prepinat i jinak nez gridem
     if grid_spacing > 0 then
         local fourth = grid_spacing / 4
+        for ord, item in pairs(model) do
+            if item.type=='point' or item.type=='circle' then
+                if x>item.d.x-fourth and x<item.d.x+fourth and y>item.d.y-fourth and y<item.d.y+fourth then
+                    return item.d.x, item.d.y
+                end  
+            elseif item.type=='line' then
+                if x>item.d[1].x-fourth and x<item.d[1].x+fourth and y>item.d[1].y-fourth and y<item.d[1].y+fourth then
+                    return item.d[1].x, item.d[1].y
+                end
+                if x>item.d[2].x-fourth and x<item.d[2].x+fourth and y>item.d[2].y-fourth and y<item.d[2].y+fourth then
+                    return item.d[2].x, item.d[2].y
+                end
+            end
+        end
         for ix=0,love.graphics.getWidth(), grid_spacing do
             for iy=0,love.graphics.getHeight(), grid_spacing do
                 if x>ix-fourth and x<ix+fourth and y>iy-fourth and y<iy+fourth then
@@ -128,7 +143,7 @@ end
 function love.draw()
     -- draw grid
     if grid_spacing > 0 then
-        love.graphics.setColor(0/255,170/255,170/255)
+        love.graphics.setColor(85/255,85/255,85/255)
         for x=0,love.graphics.getWidth(), grid_spacing do
             love.graphics.line(x, 0, x, love.graphics.getHeight())    
         end
@@ -193,11 +208,11 @@ end
 
 function love.mousereleased(x, y, button)
     x, y = snap(x, y)
+    mouse_x, mouse_y = x, y
     if mode=='point' then
         push(model, {type='point', d={x=x, y=y}})
     elseif mode=='line' then
         if prev_point then
-            local mouse_x, mouse_y = love.mouse.getPosition()
             push(model, {type='line', d={{x=prev_point.x, y=prev_point.y}, {x=mouse_x, y=mouse_y}}})
             prev_point = false
         else
@@ -205,7 +220,6 @@ function love.mousereleased(x, y, button)
         end
     elseif mode=='rectangle' then
         if prev_point then
-            local mouse_x, mouse_y = love.mouse.getPosition()
             push(model, {type='rectangle', d={x=prev_point.x, y=prev_point.y, w=mouse_x-prev_point.x, h=mouse_y-prev_point.y}})
             prev_point = false
         else
@@ -213,7 +227,6 @@ function love.mousereleased(x, y, button)
         end    
     elseif mode=='circle' then
         if prev_point then
-            local mouse_x, mouse_y = love.mouse.getPosition()
             push(model, {type='circle', d={x=prev_point.x, y=prev_point.y, r=geom.distance(prev_point, {x=mouse_x, y=mouse_y})}})
             prev_point = false
         else
@@ -241,9 +254,11 @@ function love.keyreleased(key)
         elseif grid_spacing==10 then
             grid_spacing=20
         elseif grid_spacing==20 then
-            grid_spacing=50
-        elseif grid_spacing==50 then 
-            grid_spacing=0 
+            grid_spacing=40
+        elseif grid_spacing==40 then 
+            grid_spacing=80 
+        elseif grid_spacing==80 then 
+            grid_spacing=0
         end
     elseif modes[key] then
         -- switches mode
