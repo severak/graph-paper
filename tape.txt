@@ -1,0 +1,26 @@
+# cassete model
+# okraje
+L 0 0 100 0
+L 0 0 0 60
+L 100 0 100 60
+L 0 60 100 60
+# hlavni kolecka
+C 29.25 28.747 5
+C 70.75 28.747 5
+# vnejsi ramecek
+L 6 5.5 94 5.5
+L 6 45 94 45
+L 6 5.5 6 45
+L 94 5.5 94 45
+# prostredni ramecek
+
+
+# kolecka v rozich
+C 3 3 2.5
+C 3 3 2
+C 97 3 2.5
+C 97 3 2
+C 3 57 2.5
+C 3 57 2
+C 97 57 2.5
+C 97 57 2
