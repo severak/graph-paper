@@ -96,6 +96,7 @@ end
 
 function snap(x, y)
     -- TODO - snapping prepinat i jinak nez gridem
+    -- TODO - nefunguje snapping nad rozmer
     if grid_spacing > 0 then
         local fourth = grid_spacing / 4
         for ord, item in pairs(model) do
@@ -168,28 +169,28 @@ function love.draw()
     end
 
     -- draw currently drawed geometry
+    local mouse_x, mouse_y = love.mouse.getPosition()
+    mouse_x, mouse_y = snap(mouse_x, mouse_y)
+
     love.graphics.setColor(255/255,85/255,255/255)
     if mode=='line' and prev_point then
-        local mouse_x, mouse_y = love.mouse.getPosition()
         love.graphics.line(prev_point.x, prev_point.y, mouse_x, mouse_y)
         love.graphics.rectangle('fill', prev_point.x-1, prev_point.y-1, 3, 3)
         love.graphics.rectangle('fill', mouse_x-1, mouse_y-1, 3, 3)
     end
     if mode=='rectangle' and prev_point then
-        local mouse_x, mouse_y = love.mouse.getPosition()
         love.graphics.rectangle('line', prev_point.x, prev_point.y, mouse_x-prev_point.x, mouse_y-prev_point.y)
     end
     if mode=='circle' and prev_point then
-        local mouse_x, mouse_y = love.mouse.getPosition()
         love.graphics.rectangle('fill', prev_point.x-1, prev_point.y-1, 3, 3)
         love.graphics.circle('line', prev_point.x, prev_point.y, geom.distance(prev_point, {x=mouse_x, y=mouse_y}))
     end
     if mode=='distance' and prev_point then
-        local mouse_x, mouse_y = love.mouse.getPosition()
         local mid = geom.midpoint(prev_point, {x=mouse_x, y=mouse_y})
         love.graphics.line(prev_point.x, prev_point.y, mouse_x, mouse_y)
         love.graphics.setColor(255/255,255/255,85/255)
-        love.graphics.print(" "..geom.distance(prev_point, {x=mouse_x, y=mouse_y}).." ", mid.x, mid.y)
+        local txt = string.format("%g px", geom.distance(prev_point, {x=mouse_x, y=mouse_y}))
+        love.graphics.print(txt, mid.x, mid.y)
     end
 
     -- draw program UI
