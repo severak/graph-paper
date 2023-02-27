@@ -36,3 +36,4 @@ Then I will create simple click and click GUI which will use aforementioned lang
 - symbols
 - text
 - grouping objects
+- export for print
