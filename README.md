@@ -13,3 +13,26 @@ There is no intuitive CAD aimed at hobbyists. Idea is having something like virt
 Firstly I will implement usable environment where you can use very simple language to draw your ideas.
 
 Then I will create simple click and click GUI which will use aforementioned language as file format.
+
+## TODO
+
+- panel with tool selection
+- opening and saving files
+- selecting objects
+- deleting objects
+- drawing object of specified size
+
+### later
+
+- intersections
+- cutting objects
+- zooming and moving
+- export to SVG
+- import from SVG (maybe using [svglover](https://github.com/globalcitizen/svglover))
+- import from GeoJSON
+- undo and redo
+- drawing circle arcs
+- styling of drawing
+- symbols
+- text
+- grouping objects
