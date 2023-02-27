@@ -68,4 +68,4 @@ function love.keyreleased(key)
     end
 end
 
--- TODO - require "wincom" -- when wincom is implemented
+require "wincom"
