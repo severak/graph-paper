@@ -65,7 +65,7 @@ size.visible = false
 openbar = screen:panel{y=menu.h + 1}
 open_fname = openbar:input{placeholder="filename..."}
 openbar:button{text="Open!", on_click=function()
-    local ok, new_model = pcall(load_model, open_fname.value, 20, 20)
+    local ok, new_model = pcall(load_model, open_fname.value)
     if ok then
         model = new_model
         status.text = open_fname.value .. " loaded"
