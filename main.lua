@@ -83,6 +83,12 @@ function set_mode(new_mode)
     if helps[new_mode] then
         status.text = helps[new_mode]
     end
+    if new_mode=='line' then
+        size.visible = true
+    else
+        size.visible = false
+        size.value = ""
+    end
     prev_point = false
     mode = new_mode
 end
@@ -207,11 +213,35 @@ function love.draw()
     local mouse_x, mouse_y = love.mouse.getPosition()
     mouse_x, mouse_y = snap(mouse_x, mouse_y)
 
+    local obj_size = false
+    if size.value~="" and tonumber(size.value) then
+        obj_size = tonumber(size.value)
+    end
+
     love.graphics.setColor(255/255,85/255,255/255)
     if mode=='line' and prev_point then
-        love.graphics.line(prev_point.x, prev_point.y, mouse_x, mouse_y)
-        love.graphics.rectangle('fill', prev_point.x-1, prev_point.y-1, 3, 3)
-        love.graphics.rectangle('fill', mouse_x-1, mouse_y-1, 3, 3)
+        if obj_size then
+            -- if size is set
+            local diff_x, diff_y = mouse_x-prev_point.x, mouse_y-prev_point.y
+            if math.abs(diff_x)>math.abs(diff_y) then
+                if diff_x>0 then
+                    love.graphics.line(prev_point.x, prev_point.y, prev_point.x + obj_size, prev_point.y)
+                else
+                    love.graphics.line(prev_point.x, prev_point.y, prev_point.x - obj_size, prev_point.y)
+                end
+            else
+                if diff_y>0 then
+                    love.graphics.line(prev_point.x, prev_point.y, prev_point.x, prev_point.y + obj_size)
+                else
+                    love.graphics.line(prev_point.x, prev_point.y, prev_point.x, prev_point.y - obj_size)
+                end
+            end
+            love.graphics.rectangle('fill', prev_point.x-1, prev_point.y-1, 3, 3)
+        else
+            love.graphics.line(prev_point.x, prev_point.y, mouse_x, mouse_y)
+            love.graphics.rectangle('fill', prev_point.x-1, prev_point.y-1, 3, 3)
+            love.graphics.rectangle('fill', mouse_x-1, mouse_y-1, 3, 3)
+        end
     end
     if mode=='rectangle' and prev_point then
         love.graphics.rectangle('line', prev_point.x, prev_point.y, mouse_x-prev_point.x, mouse_y-prev_point.y)
@@ -241,9 +271,34 @@ function love.mousereleased(x, y, button)
     if mode=='point' then
         push(model, {type='point', d={x=x, y=y}})
     elseif mode=='line' then
+
+        local obj_size = false
+        if size.value~="" and tonumber(size.value) then
+            obj_size = tonumber(size.value)
+        end
+
         if prev_point then
-            push(model, {type='line', d={{x=prev_point.x, y=prev_point.y}, {x=mouse_x, y=mouse_y}}})
-            prev_point = false
+            if obj_size then
+                -- if size is set
+                local diff_x, diff_y = mouse_x-prev_point.x, mouse_y-prev_point.y
+                if math.abs(diff_x)>math.abs(diff_y) then
+                    if diff_x>0 then
+                        push(model, {type='line', d={{x=prev_point.x, y=prev_point.y}, {x=prev_point.x + obj_size, y=prev_point.y}}})
+                    else
+                        push(model, {type='line', d={{x=prev_point.x, y=prev_point.y}, {x=prev_point.x - obj_size, y=prev_point.y}}})
+                    end
+                else
+                    if diff_y>0 then
+                        push(model, {type='line', d={{x=prev_point.x, y=prev_point.y}, {x=prev_point.x, y=prev_point.y + obj_size}}})
+                    else
+                        push(model, {type='line', d={{x=prev_point.x, y=prev_point.y}, {x=prev_point.x, y=prev_point.y - obj_size}}})
+                    end
+                end
+                prev_point = false
+            else
+                push(model, {type='line', d={{x=prev_point.x, y=prev_point.y}, {x=mouse_x, y=mouse_y}}})
+                prev_point = false
+            end
         else
             prev_point = {x=x, y=y}
         end
