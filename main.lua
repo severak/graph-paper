@@ -3,6 +3,7 @@
 -- MIT licensed
 
 local geom = require "severak.geom"
+local gui = require "severak.gui"
 local push = table.insert
 
 -- data of our drawing
@@ -35,14 +36,27 @@ local prev_point = false
 
 local grid_spacing = 20
 
-local is_dos = love.system.getOS()=='DOS' -- cool kids runs their programs on DOS
-if is_dos then
-    local og_set_color = love.graphics.setColor
-    love.graphics.setColor = function(r,g,b)
-        og_set_color(math.floor(r*255), math.floor(g*255), math.floor(b*255)) -- Love 0.2.x uses integer palette
-    end
-end
--- TODO - move all these is_dos tweaks to separate library
+local selected = {}
+
+screen = gui.screen()
+gui.switch(screen)
+
+menu = screen:panel{}
+menu:label{text="Draw: "}
+menu:button{text="point", on_click=function() set_mode"point" end}
+menu:button{text="line", on_click=function() set_mode"line" end}
+menu:button{text="rectangle", on_click=function() set_mode"rectangle" end}
+menu:button{text="circle", on_click=function() set_mode"circle" end}
+menu:label{text=" | other: "}
+menu:button{text="Distance", on_click=function() set_mode"distance" end}
+-- menu:button{text="Select", on_click=function() set_mode"select" end}
+menu:button{text="Grid size", on_click=function() cycle_grid_size() end}
+menu:button{text="Exit", on_click=function() love.event.quit() end}
+
+statusbar = screen:panel{y=-1, h=20}
+status = statusbar:label{text="Welcome to Graph paper v 0.00"}
+statusbar:label{text="|"}
+statusbar:input{placeholder="enter size...", visible=false}
 
 function dump(o)
     if type(o) == 'table' then
@@ -57,7 +71,27 @@ function dump(o)
     end
  end
 
--- load model
+function set_mode(new_mode)
+    prev_point = false
+    mode = new_mode
+end
+
+function cycle_grid_size()
+    -- cycle trough grid spacings
+    if grid_spacing==0 then 
+        grid_spacing=10
+    elseif grid_spacing==10 then
+        grid_spacing=20
+    elseif grid_spacing==20 then
+        grid_spacing=40
+    elseif grid_spacing==40 then 
+        grid_spacing=80 
+    elseif grid_spacing==80 then 
+        grid_spacing=0
+    end
+end
+
+
 function load_model(filename, offx, offy, zoom)
     offx=offx or 0
     offy=offy or 0
@@ -125,20 +159,7 @@ function snap(x, y)
 end
 
 function love.load(args)
-    if not is_dos then love.window.setTitle("Graph paper (prototype)") end
-    if is_dos then
-        if args[2] then
-            model = load_model(args[2], 10, 20, 2)
-        end
-    else
-        if args[1] then
-            model = load_model(args[1], 10, 20, 5)
-        end
-    end
-end
-
-function love.update(dt)
-    if is_dos then love.timer.sleep(0.05) end -- sleep for 100ms to not boil DOSBox
+    love.window.setTitle("Graph paper (prototype)")
 end
 
 function love.draw()
@@ -194,20 +215,13 @@ function love.draw()
     end
 
     -- draw program UI
-    love.graphics.setColor(255/255,255/255,85/255)
-    love.graphics.print("Graph paper (prototype)", 0, 0)
-    love.graphics.print("mode: " .. mode, 0, love.graphics.getHeight()-16)
-
-    if is_dos then
-        -- draw mouse (if under DOS)
-        local mouse_x, mouse_y = love.mouse.getPosition()
-        love.graphics.line(mouse_x, mouse_y, mouse_x+10, mouse_y+10)
-        love.graphics.line(mouse_x, mouse_y, mouse_x, mouse_y+5)
-        love.graphics.line(mouse_x, mouse_y, mouse_x+5, mouse_y)
-    end
+    gui.draw()
 end
 
 function love.mousereleased(x, y, button)
+    if not gui.mousereleased(x,y,button) then
+        return
+    end
     x, y = snap(x, y)
     mouse_x, mouse_y = x, y
     if mode=='point' then
@@ -234,36 +248,34 @@ function love.mousereleased(x, y, button)
             prev_point = {x=x, y=y}
         end
     elseif mode=='distance' then
-        prev_point = {x=x, y=y}
+        if prev_point then
+            prev_point = false
+        else
+            prev_point = {x=x, y=y}
+        end
+    elseif mode=='select' then
+        -- TODO
     end
 end
 
 function love.keyreleased(key)
-    if key=='escape' then
-        -- quits app
-        love.event.quit()
-    elseif key=="x" then
-        -- deletes all things
-        model = {}
-    elseif key=='z' then
-        -- removes last thing
-        table.remove(model)
-    elseif key=='g' then
-        -- cycle trough grid spacings
-        if grid_spacing==0 then 
-            grid_spacing=10
-        elseif grid_spacing==10 then
-            grid_spacing=20
-        elseif grid_spacing==20 then
-            grid_spacing=40
-        elseif grid_spacing==40 then 
-            grid_spacing=80 
-        elseif grid_spacing==80 then 
-            grid_spacing=0
-        end
+    if not gui.keyreleased(key) then
+        return
+    end
+    if key=='g' then
+        cycle_grid_size()
     elseif modes[key] then
         -- switches mode
-        mode = modes[key]
-        prev_point = false
+        set_mode(modes[key])
     end
 end
+
+function love.textinput(text)
+    gui.textinput(text)
+end
+
+function love.update(dt)
+    gui.update(dt)
+end
+
+require "wincom"
