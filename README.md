@@ -2,17 +2,17 @@
 
 simple vector editor / language / CAD for primitive technology
 
-**Work in progress.** Not yet usable.
+**Work in progress.** Not yet usable in real life.
 
 ## idea and motivation
 
 There is no intuitive CAD aimed at hobbyists. Idea is having something like virtual equivalent of good old graph paper. Click on one crossing get point A, on another and get point B and voila - you have your first line segment!
 
-## implementation details
+## status
 
-Firstly I will implement usable environment where you can use very simple language to draw your ideas.
+I have working prototype running in LOVE 2D engine. Download this repository as ZIP file and rename it as `graph-paper.love`.
 
-Then I will create simple click and click GUI which will use aforementioned language as file format.
+![example model](doc/smokecar.png)
 
 ## TODO
 
