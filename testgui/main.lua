@@ -13,36 +13,47 @@ function dump(o)
     end
 end
 
-mm = gui.screen "main"
+main_screen = gui.screen()
+panel = main_screen:panel{y=400}
+panel:label{text="Label on panel", w=300}
+panel:button{text="Button on panel"}
+panel:button{image="icon.png"}
+panel:input{placeholder="...", w=100}
+toggle = panel:button{text="toggle status"}
 
-status = mm:label{text="Welcome to the demo...", y=-1, color={r=255/255, g=255/255, b=85/255}}
+function toggle:on_click()
+    status.visible = not status.visible
+end
 
-b1 = mm:button{text = "Click to move button to random place"}
+status = main_screen:label{text="Welcome to the demo...", y=-1, color={r=255/255, g=255/255, b=85/255}}
 
-incr = mm:button{x=60, y=60, text="Increment!"}
+b1 = main_screen:button{text = "Click to move button to random place", padding=8, h=80, x=320, y=240}
+
+incr = main_screen:button{x=60, y=60, text="Increment!"}
 incr.val = 0;
 
 function incr:on_click()
     incr.val = incr.val + 1
-    status.text = "Increment = " .. incr.val
+    status.text = "Incremented = " .. incr.val
 end
 
-exit = mm:button{x=-1, image="icon.png"}
+exit = main_screen:button{x=-1, image="icon.png"}
 exit.on_click = function()
     love.event.quit()
 end
 
 b1.on_click = function(self)
-    self.x = math.random(love.graphics.getWidth())
-    self.y = math.random(love.graphics.getHeight())
+    self.x = math.random(love.graphics.getWidth() - self.w)
+    self.y = math.random(love.graphics.getHeight() - self.h)
     status.text = "Moved demo button"
 end
 
-inp = mm:input{x=40, y=20, placeholder="zadejte..."}
+inp = main_screen:input{x=40, y=20, placeholder="enter..."}
 
 -- TODO - 7GUI examples
 
-gui.switch "main"
+gui.switch(main_screen)
+love.window.setTitle("GUI test")
 
 function love.draw()
     love.graphics.setColor(85/255, 85/255, 255)
@@ -66,6 +77,10 @@ function love.keyreleased(key)
     if gui.keyreleased(key) then
         status.text = "keyreleased: " .. key
     end
+end
+
+function love.update(dt)
+    gui.update(dt)
 end
 
 require "wincom"

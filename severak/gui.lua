@@ -2,29 +2,44 @@
 -- (c) Severák 2023
 -- MIT licensed
 
--- internals are ugly as hell, but API works
+-- This is not in any way feature complete GUI library.
+-- 
+-- It just works for my project.
+
+-- TODO - have some form of recycling functions (extend etc)
+-- TODO - do not click trough widgets
 
 local push = table.insert
 
+-- checks if GUI element is in BBOX
 function in_bbox(x, y, bbox)
     return x>=bbox.x and x<=(bbox.x+bbox.w) and y>=bbox.y and y<=(bbox.y+bbox.h)
 end
 
+-- computes coordinates of widget
 function fix_pos(def)
+    def.visible = def.visible or true
+    def.x = def.x or 0
+    def.y = def.y or 0
+    def.padding = def.padding or 2
     if def.x < 0 then
         def.x = love.graphics.getWidth() - def.w + def.x
     end
     if def.y < 0 then
         def.y = love.graphics.getHeight() - def.h + def.y
     end
-    -- TODO - padding
+    if def.padding then
+        def.w = def.w + (def.padding * 2)
+        def.h = def.h + (def.padding * 2)
+    end
 end
 
 local gui = {}
 gui.screens = {}
 gui.focused = false
 gui.font = love.graphics.getFont()
-
+gui.blinktime = 0
+gui.showcursor = false
 
 -- DOS color scheme from https://www.colorbook.io/colorschemes/view/1475
 gui.colors = {
@@ -43,17 +58,16 @@ local label = {}
 
 function label.new(def)
     def.text = def.text or error "Label needs defined text!"
-    def.x = def.x or 0
-    def.y = def.y or 0
-    def.w = gui.font:getWidth(def.text)
-    def.h = gui.font:getHeight()
+    def.w = def.w or gui.font:getWidth(def.text)
+    def.h = def.h or gui.font:getHeight()
     fix_pos(def)
     return setmetatable(def, {__index=label})
 end
 
 function label:draw()
+    if not self.visible then return end
     gui.set_color(self.color or gui.colors.text)
-    love.graphics.print(self.text, self.x, self.y)
+    love.graphics.print(self.text, self.x + self.padding, self.y + self.padding)
 end
 
 function label:mousereleased() end
@@ -65,9 +79,6 @@ function label:keyreleased() end
 local button = {}
 
 function button.new(def)
-    def.padding = def.padding or 2
-    def.x = def.x or 0
-    def.y = def.y or 0
     if def.text then
         def.w = def.w or gui.font:getWidth(def.text)
         def.h = def.h or gui.font:getHeight()
@@ -77,6 +88,7 @@ function button.new(def)
         end
         def.w = def.image:getWidth()
         def.h = def.image:getHeight()
+        def.padding = 0
     else
         error "Button needs to have image or text defined."
     end
@@ -89,13 +101,14 @@ function button:on_click()
 end
 
 function button:draw()
+    if not self.visible then return end
     gui.set_color(gui.colors.background)
     love.graphics.rectangle("fill",self.x, self.y, self.w, self.h)
     gui.set_color(gui.colors.border)
     love.graphics.rectangle("line",self.x, self.y, self.w, self.h)
     if self.text then
         gui.set_color(gui.colors.text)
-        love.graphics.print(self.text, self.x, self.y)
+        love.graphics.print(self.text, self.x + self.padding, self.y + self.padding)
     elseif self.image then
         love.graphics.draw(self.image, self.x, self.y)
     end
@@ -103,6 +116,7 @@ function button:draw()
 end
 
 function button:mousereleased(x,y,button)
+    if not self.visible then return end
     if in_bbox(x,y,self) then
         self:on_click()
         return true
@@ -119,7 +133,7 @@ function input.new(def)
     def.x = def.x or 0
     def.y = def.y or 0
     if def.placeholder then
-        def.w = gui.font:getWidth(def.placeholder)
+        def.w = def.w or gui.font:getWidth(def.placeholder)
     elseif not def.w then
         def.w = gui.font:getWidth("brambora")
     end
@@ -130,21 +144,26 @@ function input.new(def)
 end
 
 function input:draw()
+    if not self.visible then return end
     gui.set_color(gui.colors.input)
     love.graphics.rectangle("fill",self.x, self.y, self.w, self.h)
     gui.set_color(gui.colors.border)
     love.graphics.rectangle("line",self.x, self.y, self.w, self.h)
     if self.value ~= "" or gui.focused==self then
         gui.set_color(gui.colors.text)
-        -- TODO animovat kurzor
-        love.graphics.print(self.value .. (gui.focused==self and "|" or ""), self.x, self.y)
+        local cursor = ""
+        if gui.focused == self and gui.showcursor then
+            cursor = "|"
+        end
+        love.graphics.print(self.value .. cursor, self.x + self.padding, self.y + self.padding)
     elseif self.placeholder then
         gui.set_color(gui.colors.border)
-        love.graphics.print(self.placeholder, self.x, self.y)
+        love.graphics.print(self.placeholder, self.x + self.padding, self.y + self.padding)
     end
 end
 
 function input:mousereleased(x,y,button)
+    if not self.visible then return end
     if in_bbox(x,y,self) then
         gui.focused = self
         return true
@@ -152,6 +171,7 @@ function input:mousereleased(x,y,button)
 end
 
 function input:textinput(text)
+    if not self.visible then return end
     if gui.focused==self then
         self.value = self.value .. text
         return true
@@ -159,6 +179,7 @@ function input:textinput(text)
 end
 
 function input:keyreleased(key)
+    if not self.visible then return end
     if gui.focused==self then
         if key=="backspace" then
             self.value = string.sub(self.value, 1, -2) -- TODO utf8
@@ -169,7 +190,98 @@ function input:keyreleased(key)
     end
 end
 
--- TODO panel with intelligent placing of buttons
+local panel = {}
+
+function panel.new(def)
+    def.children = {}
+    if not def.w then
+        def.w = love.graphics.getWidth()
+    end
+    def.h = def.h or gui.font:getHeight()
+    fix_pos(def)
+    setmetatable(def, {__index=panel})
+    return def
+end
+
+function panel:next_x()
+    if #self.children > 0 then
+        local last = self.children[#self.children]
+        return last.x + last.w + self.padding
+    end
+    return 0
+end
+
+function panel:label(def)
+    def.x = self:next_x()
+    def.y = self.y
+    local widget = label.new(def)
+    push(self.children, widget)
+    if widget.h > self.h then 
+        self.h = widget.h
+    end
+    return widget
+end
+
+function panel:button(def)
+    def.x = self:next_x()
+    def.y = self.y
+    local widget = button.new(def)
+    push(self.children, widget)
+    if widget.h > self.h then 
+        self.h = widget.h
+    end
+    return widget
+end
+
+function panel:input(def)
+    def.x = self:next_x()
+    def.y = self.y
+    local widget = input.new(def)
+    push(self.children, widget)
+    if widget.h > self.h then 
+        self.h = widget.h
+    end
+    return widget
+end
+
+function panel:draw()
+    if not self.visible then return end
+    gui.set_color(gui.colors.background)
+    love.graphics.rectangle("fill",self.x, self.y, self.w, self.h)
+    for _, child in ipairs(self.children) do
+        child:draw()
+    end
+end
+
+function panel:mousereleased(x,y,button)
+    if not self.visible then return end
+    local done = false
+    for _, child in ipairs(self.children) do
+        done = child:mousereleased(x, y, button) or done
+    end
+    if in_bbox(x,y,self) then
+        return true
+    end
+    return done
+end
+
+function panel:textinput(text)
+    if not self.visible then return end
+    local done = false
+    for _, child in ipairs(self.children) do
+        done = child:textinput(text) or done
+    end
+    return done
+end
+
+function panel:keyreleased(key)
+    if not self.visible then return end
+    local done = false
+    for _, child in ipairs(self.children) do
+        done = child:keyreleased(key) or done
+    end
+    return done
+end
 
 -- TODO dialog which obscures rest of the screen
 
@@ -190,6 +302,12 @@ end
 
 function screen:input(def)
     local b = input.new(def)
+    push(self.children, b)
+    return b
+end
+
+function screen:panel(def)
+    local b = panel.new(def)
     push(self.children, b)
     return b
 end
@@ -224,10 +342,9 @@ function screen:keyreleased(key)
     return done
 end
 
--- main gui function
-function gui.screen(name)
+-- main gui functions:
+function gui.screen()
     local s = {}
-    s.name = name
     s.active = false
     s.children = {}
     setmetatable(s, {__index=screen})
@@ -235,11 +352,13 @@ function gui.screen(name)
     return s
 end
 
-function gui.switch(screen_name)
+function gui.switch(screen)
     for _, scr in ipairs(gui.screens) do
-        scr.active = scr.name==screen_name
+        scr.active = screen==scr
     end
 end
+
+-- these will be called from LOVE2D
 
 function gui.draw()
     gui.font = love.graphics.getFont()
@@ -279,6 +398,15 @@ function gui.keyreleased(key)
         end
     end
     return not done
+end
+
+function gui.update(dt)
+    gui.blinktime = gui.blinktime + dt
+    -- print(gui.blinktime)
+    if gui.blinktime > 1 then
+        gui.blinktime = 0
+    end
+    gui.showcursor = gui.blinktime < 0.5
 end
 
 return gui
