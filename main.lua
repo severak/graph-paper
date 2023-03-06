@@ -54,7 +54,7 @@ menu:button{text="Grid size", on_click=function() cycle_grid_size() end}
 menu:button{text="Exit", on_click=function() love.event.quit() end}
 
 statusbar = screen:panel{y=-1, h=20}
-status = statusbar:label{text="Welcome to Graph paper prototype"}
+status = statusbar:label{text="Welcome to Graph paper - CAD for primitive technology"}
 statusbar:label{text="|"}
 size = statusbar:input{placeholder="enter size..."}
 size.visible = false
@@ -304,7 +304,13 @@ function love.mousereleased(x, y, button)
         end
     elseif mode=='rectangle' then
         if prev_point then
-            push(model, {type='rectangle', d={x=prev_point.x, y=prev_point.y, w=mouse_x-prev_point.x, h=mouse_y-prev_point.y}})
+            -- as selecting of rectangle does not work yet, we have this workaround hack:
+            push(model, {type='line', d={{x=prev_point.x, y=prev_point.y}, {x=mouse_x, y=prev_point.y}}}) -- first horizontal
+            push(model, {type='line', d={{x=prev_point.x, y=mouse_y}, {x=mouse_x, y=mouse_y}}}) -- second horizontal
+            push(model, {type='line', d={{x=prev_point.x, y=prev_point.y}, {x=prev_point.x, y=mouse_y}}}) -- first vertical
+            push(model, {type='line', d={{x=mouse_x, y=prev_point.y}, {x=mouse_x, y=mouse_y}}}) -- second vertical
+            -- original rectangle:
+            -- push(model, {type='rectangle', d={x=prev_point.x, y=prev_point.y, w=mouse_x-prev_point.x, h=mouse_y-prev_point.y}})
             prev_point = false
         else
             prev_point = {x=x, y=y}

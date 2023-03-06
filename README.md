@@ -15,12 +15,8 @@ Firstly I will implement usable environment where you can use very simple langua
 Then I will create simple click and click GUI which will use aforementioned language as file format.
 
 ## TODO
-
-- panel with tool selection
 - opening and saving files
-- selecting objects
-- deleting objects
-- drawing object of specified size
+- drawing object of specified size (implemented just for lines now)
 
 ### later
 
