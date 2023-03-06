@@ -42,7 +42,10 @@ screen = gui.screen()
 gui.switch(screen)
 
 menu = screen:panel{}
-menu:label{text="Draw: "}
+menu:label{text="File: "}
+menu:button{text="open", on_click=function() openbar.visible=true end}
+menu:button{text="save", on_click=function() savebar.visible=true end}
+menu:label{text=" | Draw: "}
 menu:button{text="point", on_click=function() set_mode"point" end}
 menu:button{text="line", on_click=function() set_mode"line" end}
 menu:button{text="rectangle", on_click=function() set_mode"rectangle" end}
@@ -51,13 +54,42 @@ menu:label{text=" | other: "}
 menu:button{text="Distance", on_click=function() set_mode"distance" end}
 menu:button{text="Select", on_click=function() set_mode"select"; selected={} end}
 menu:button{text="Grid size", on_click=function() cycle_grid_size() end}
-menu:button{text="Exit", on_click=function() love.event.quit() end}
+-- menu:button{text="Exit", on_click=function() love.event.quit() end}
 
 statusbar = screen:panel{y=-1, h=20}
 status = statusbar:label{text="Welcome to Graph paper - CAD for primitive technology"}
 statusbar:label{text="|"}
 size = statusbar:input{placeholder="enter size..."}
 size.visible = false
+
+openbar = screen:panel{y=menu.h + 1}
+open_fname = openbar:input{placeholder="filename..."}
+openbar:button{text="Open!", on_click=function()
+    local ok, new_model = pcall(load_model, open_fname.value, 20, 20)
+    if ok then
+        model = new_model
+        status.text = open_fname.value .. " loaded"
+    else
+        status.text = "Error opening file " .. open_fname.value
+    end
+    open_fname.value = ""
+    openbar.visible = false
+end}
+openbar.visible = false
+
+savebar = screen:panel{y=menu.h + 1}
+save_fname = savebar:input{placeholder="filename..."}
+savebar:button{text="Save!", on_click=function()
+    local ok = pcall(save_model, save_fname.value)
+    if ok then
+        status.text = save_fname.value .. " saved"
+    else
+        status.text = "Error saving file " .. save_fname.value .. " = " .. new_model
+    end
+    save_fname.value = ""
+    savebar.visible = false
+end}
+savebar.visible = false
 
 function dump(o)
     if type(o) == 'table' then
@@ -110,6 +142,7 @@ end
 
 
 function load_model(filename, offx, offy, zoom)
+    -- TODO - use string.split instead of this
     offx=offx or 0
     offy=offy or 0
     zoom=zoom or 1
@@ -143,6 +176,24 @@ function load_model(filename, offx, offy, zoom)
         end
     end
     return model
+end
+
+function save_model(filename)
+    local fh = assert(io.open(filename, "w+"))
+    fh:write("# edited in Graph paper prototype\n")
+    fh:write("# saved at " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n")
+    for ord, item in ipairs(model) do
+        if item.type=="point" then
+            fh:write("P " .. item.d.x .. " " .. item.d.y .. "\n")
+        elseif item.type=="line" then
+            fh:write("L " .. item.d[1].x .. " " .. item.d[1].y .. " " .. item.d[2].x .. " " .. item.d[2].y .. "\n")
+        elseif item.type=="circle" then
+            fh:write("C " .. item.d.x .. " " .. item.d.y .. " " .. item.d.r .. "\n")
+        elseif item.type=="rectangle" then
+            -- TODO save rectangles when we have them
+        end
+    end
+    fh:close()
 end
 
 function snap(x, y)
