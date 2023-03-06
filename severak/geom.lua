@@ -4,6 +4,11 @@
 
 local geom = {}
 
+function geom.almost_eq(a, b, epsilon)
+    epsilon = epsilon or 0.1
+    return math.abs(b - a) < epsilon
+end
+
 -- distance from point a to point b
 function geom.distance(a, b)
     return math.sqrt(math.pow(b.x-a.x, 2) + math.pow(b.y-a.y,2, 2))

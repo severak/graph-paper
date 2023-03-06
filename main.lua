@@ -49,14 +49,15 @@ menu:button{text="rectangle", on_click=function() set_mode"rectangle" end}
 menu:button{text="circle", on_click=function() set_mode"circle" end}
 menu:label{text=" | other: "}
 menu:button{text="Distance", on_click=function() set_mode"distance" end}
--- menu:button{text="Select", on_click=function() set_mode"select" end}
+menu:button{text="Select", on_click=function() set_mode"select"; selected={} end}
 menu:button{text="Grid size", on_click=function() cycle_grid_size() end}
 menu:button{text="Exit", on_click=function() love.event.quit() end}
 
 statusbar = screen:panel{y=-1, h=20}
-status = statusbar:label{text="Welcome to Graph paper v 0.00"}
+status = statusbar:label{text="Welcome to Graph paper prototype"}
 statusbar:label{text="|"}
-statusbar:input{placeholder="enter size...", visible=false}
+size = statusbar:input{placeholder="enter size..."}
+size.visible = false
 
 function dump(o)
     if type(o) == 'table' then
@@ -72,6 +73,16 @@ function dump(o)
  end
 
 function set_mode(new_mode)
+    local helps = {
+        point = 'Click to add a point...',
+        line = 'Click two times to add line...',
+        circle = 'Click to add circle...',
+        rectangle = 'Click to add rectangle...',
+        select = 'Click near objects to select them...'
+    }
+    if helps[new_mode] then
+        status.text = helps[new_mode]
+    end
     prev_point = false
     mode = new_mode
 end
@@ -175,8 +186,11 @@ function love.draw()
     end
     
     -- drawing all drawn geometry
-    love.graphics.setColor(255/255,255/255,255/255)
     for ord, item in ipairs(model) do
+        love.graphics.setColor(255/255,255/255,255/255)
+        if selected[item] then
+            love.graphics.setColor(0/255,255/255,0/255)
+        end
         if item.type=='point' then
             love.graphics.rectangle('fill', item.d.x-1, item.d.y-1, 3, 3)
         elseif item.type=='line' then
@@ -254,7 +268,28 @@ function love.mousereleased(x, y, button)
             prev_point = {x=x, y=y}
         end
     elseif mode=='select' then
-        -- TODO
+        -- TODO - selecting by rectangle over objects
+        local fourth = 2
+        if grid_spacing==0 then
+            fourth = grid_spacing / 4
+        end
+        for ord, item in pairs(model) do
+            if item.type=='point' then
+                if x>=item.d.x-1 and x<=item.d.x+1 and y>=item.d.y-1 and y<=item.d.y+1 then
+                    selected[item] = true
+                end
+            elseif item.type=='line' then
+                -- TODO - measure distance from clicked point to line, if d<fourth it was clicked
+                if geom.almost_eq(geom.distance(item.d[1], item.d[2]), geom.distance(item.d[1], {x=x, y=y}) + geom.distance(item.d[2], {x=x, y=y}), fourth * 4) then
+                    selected[item] = true
+                end
+            elseif item.type=='circle' then
+                if geom.almost_eq(geom.distance(item.d, {x=x, y=y}), item.d.r, fourth) then
+                    selected[item] = true
+                end
+            end
+            -- TODO - select rectangles by clicking near them
+        end
     end
 end
 
@@ -264,6 +299,16 @@ function love.keyreleased(key)
     end
     if key=='g' then
         cycle_grid_size()
+    elseif key=='delete' then
+        -- remove selected items
+        local keep = {}
+        for ord,item in ipairs(model) do
+            if not selected[item] then
+                push(keep, item)
+            end
+        end
+        model = keep
+        selected = {}
     elseif modes[key] then
         -- switches mode
         set_mode(modes[key])
