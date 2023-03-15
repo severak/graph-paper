@@ -46,7 +46,8 @@ gui.colors = {
     border = {r=85/255, g=85/255, b=85/255},
     background = {r=170/255, g=170/255, b=170/255},
     text = {r=0, g=0, b=0},
-    input = {r=255/255, g=255/255, b=255/255}
+    input = {r=255/255, g=255/255, b=255/255},
+    yellow = {r=255/255, g=255/255, b=85/255}
 }
 
 function gui.set_color(color)
@@ -146,6 +147,9 @@ end
 function input:draw()
     if not self.visible then return end
     gui.set_color(gui.colors.input)
+    if gui.focused == self then
+        gui.set_color(gui.colors.yellow)
+    end
     love.graphics.rectangle("fill",self.x, self.y, self.w, self.h)
     gui.set_color(gui.colors.border)
     love.graphics.rectangle("line",self.x, self.y, self.w, self.h)

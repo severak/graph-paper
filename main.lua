@@ -25,7 +25,7 @@ local modes = {
     c = 'circle', -- adding circles
     -- adding arcs
     -- adding dims
-    -- selecting things
+    s = 'select',
     -- deleting things
     -- move things around
     d = 'distance', -- measuring from point to point
@@ -421,6 +421,10 @@ function love.keyreleased(key)
         end
         model = keep
         selected = {}
+    elseif key=='tab' then
+        if size.visible then
+            gui.focused = size
+        end
     elseif modes[key] then
         -- switches mode
         set_mode(modes[key])
