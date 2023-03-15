@@ -41,6 +41,9 @@ local selected = {}
 screen = gui.screen()
 gui.switch(screen)
 
+local WW = love.graphics.getWidth()
+local WH = love.graphics.getHeight()
+
 menu = screen:panel{}
 menu:label{text="File: "}
 menu:button{text="open", on_click=function() openbar.visible=true end}
@@ -63,7 +66,7 @@ size = statusbar:input{placeholder="enter size..."}
 size.visible = false
 
 openbar = screen:panel{y=menu.h + 1}
-open_fname = openbar:input{placeholder="filename..."}
+open_fname = openbar:input{placeholder="filename...", w=WW/3}
 openbar:button{text="Open!", on_click=function()
     local ok, new_model = pcall(load_model, open_fname.value)
     if ok then
@@ -78,7 +81,7 @@ end}
 openbar.visible = false
 
 savebar = screen:panel{y=menu.h + 1}
-save_fname = savebar:input{placeholder="filename..."}
+save_fname = savebar:input{placeholder="filename...", w=WW/3}
 savebar:button{text="Save!", on_click=function()
     local ok = pcall(save_model, save_fname.value)
     if ok then
