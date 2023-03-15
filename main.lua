@@ -294,6 +294,9 @@ function love.draw()
             love.graphics.rectangle('fill', mouse_x-1, mouse_y-1, 3, 3)
         end
     end
+    if mode=='line' and not prev_point and obj_size then
+        love.graphics.rectangle('fill', mouse_x-1, mouse_y-1, 3, 3) -- draw currently starting line as is snapping on grid
+    end
     if mode=='rectangle' and prev_point then
         love.graphics.rectangle('line', prev_point.x, prev_point.y, mouse_x-prev_point.x, mouse_y-prev_point.y)
     end
