@@ -113,7 +113,16 @@ function button:draw()
     elseif self.image then
         love.graphics.draw(self.image, self.x, self.y)
     end
-    -- TODO - drawing title
+    
+    if self.title and in_bbox(love.mouse.getX(),love.mouse.getY(),self) then
+        local tw = gui.font:getWidth(self.title)
+        local fh = gui.font:getHeight()
+        local space_for_cursor = 20 -- just draw it under the mouse cursor
+        gui.set_color(gui.colors.yellow)
+        love.graphics.rectangle("fill",self.x, self.y + self.h + space_for_cursor, tw, fh)
+        gui.set_color(gui.colors.text)
+        love.graphics.print(self.title, self.x, self.y + self.h + space_for_cursor)
+    end
 end
 
 function button:mousereleased(x,y,button)
