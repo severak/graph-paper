@@ -304,6 +304,19 @@ function love.draw()
         love.graphics.rectangle('fill', prev_point.x-1, prev_point.y-1, 3, 3)
         love.graphics.circle('line', prev_point.x, prev_point.y, geom.distance(prev_point, {x=mouse_x, y=mouse_y}))
     end
+    -- size of one square drawn in bottom left corner
+    if mode=='distance' and grid_spacing>0 then
+        local WW = love.graphics.getWidth()
+        local WH = love.graphics.getHeight() - 20
+        local sx = math.floor(WW / grid_spacing) - 1
+        local sy = math.floor(WH / grid_spacing) - 1
+        local fw = gui.font:getWidth(grid_spacing .. " px")
+        local fh = gui.font:getHeight()
+        love.graphics.setColor(255/255,255/255,85/255)
+        love.graphics.line(sx*grid_spacing, sy*grid_spacing, (sx-1)*grid_spacing, sy*grid_spacing)
+        love.graphics.print(grid_spacing .. " px", ((sx-1)*grid_spacing), (sy*grid_spacing)-fh)
+        
+    end
     if mode=='distance' and prev_point then
         local mid = geom.midpoint(prev_point, {x=mouse_x, y=mouse_y})
         love.graphics.line(prev_point.x, prev_point.y, mouse_x, mouse_y)
