@@ -57,6 +57,7 @@ menu:label{text=" | other: "}
 menu:button{text="Distance", on_click=function() set_mode"distance" end}
 menu:button{text="Select", on_click=function() set_mode"select"; selected={} end}
 menu:button{text="Grid size", on_click=function() cycle_grid_size() end}
+menu:button{text="Hotspots", on_click=function() set_mode"hotspots" end}
 -- menu:button{text="Exit", on_click=function() love.event.quit() end}
 
 statusbar = screen:panel{y=-1, h=20}
@@ -242,6 +243,34 @@ function love.draw()
         end
         for y=0,love.graphics.getHeight(), grid_spacing do
             love.graphics.line(0, y, love.graphics.getWidth(), y)    
+        end
+    end
+
+    if mode=="hotspots" or mode=="select" then
+        for ord, item in ipairs(model) do
+            local fourth = 2
+            if grid_spacing==0 then
+                fourth = grid_spacing / 4
+            end
+            love.graphics.setColor(132/255,136/255,132/255)
+            for ix=1, love.graphics.getWidth() do
+                for iy=1, love.graphics.getHeight() do
+                    if item.type=='point' then
+                        if ix>=item.d.x-1 and ix<=item.d.x+1 and iy>=item.d.y-1 and iy<=item.d.y+1 then
+                            love.graphics.points(ix, iy)
+                        end
+                    elseif item.type=='line' then
+                        -- TODO - measure distance from clicked point to line, if d<fourth it was clicked
+                        if geom.almost_eq(geom.distance(item.d[1], item.d[2]), geom.distance(item.d[1], {x=ix, y=iy}) + geom.distance(item.d[2], {x=ix, y=iy}), fourth * 4) then
+                            love.graphics.points(ix, iy)
+                        end
+                    elseif item.type=='circle' then
+                        if geom.almost_eq(geom.distance(item.d, {x=ix, y=iy}), item.d.r, fourth) then
+                            love.graphics.points(ix, iy)
+                        end
+                    end
+                end
+            end
         end
     end
     
