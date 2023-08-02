@@ -6,7 +6,7 @@
 --
 -- (or it crashes even more because of unit conversion errors below:)
 -- 
--- Strongly inspired by Frink language (https://frinklang.org/).
+-- Strongly inspired by Frink language (https://frinklang.org/) and Insect.sh calculator.
 
 local units = {}
 local units_meta = {}
@@ -32,6 +32,9 @@ units.explicit_convert = {}
 -- unit relations for multiplying and division
 units.relations = {}
 
+-- useful constants
+units.const = {}
+
 -- format of units when calling tonstring(unit)
 units.format_string = "%.10g %s"
 
@@ -49,6 +52,11 @@ end
 
 function units.conforms(a, b)
     return units.is_unit(a) and units.is_unit(b) and units.type[a.unit]==units.type[b.unit]
+end
+
+function units.unpack(val)
+    assert(units.is_unit(val), "Only units can be unpacked")
+    return val.value, val.unit
 end
 
 function units.convert_value(val, unit)
@@ -77,8 +85,27 @@ function units.convert(val, unit)
     return units.dim(units.convert_value(val, unit),  unit)
 end
 
+function units.best(val, possible_units)
+    assert(#possible_units>0, "Please provide units to choose from.")
+    local prev = val
+    for i, candidate in ipairs(possible_units) do
+        if type(candidate)=='string' then
+            possible_units[i] = units.dim(1, candidate)
+        end
+        assert(units.conforms(prev, candidate), "Possible units are not conformal.")
+        prev = candidate
+    end
+    table.sort(possible_units, function(a, b) return a>b end)
+    for i, candidate in ipairs(possible_units) do
+        if val >= candidate then
+            return units.convert(val, candidate.unit)
+        end
+    end
+    return val
+end
+
 function units.parse(val)
-    local num, unit = string.match(val, "([%d%.]+)%s-(%w+)")
+    local num, unit = string.match(val, "([%d%.]+)%s-(%S+)")
     if num and unit then
         if units.size[unit] then
             return units.dim(tonumber(num), unit)
@@ -119,7 +146,7 @@ end
 
 function units_meta.__add(a, b)
     assert(units.is_unit(a) and units.is_unit(b), "Only units can be add together.")
-    assert(units.conforms(a,b), "Only conformal units can be added. (We will not add kilograms to meters.)")
+    assert(units.conforms(a,b), "Only conformal units can be added. Cannot add apples to oranges.")
     
     -- units are first converted to the smaller one to perform addition
     if units.size[a.unit] < units.size[b.unit] then
@@ -135,7 +162,7 @@ end
 
 function units_meta.__sub(a, b)
     assert(units.is_unit(a) and units.is_unit(b), "Only units can be subtracted.")
-    assert(units.conforms(a,b), "Only conformal units can be subtracted. (We will not add kilograms to meters.)")
+    assert(units.conforms(a,b), "Only conformal units can be subtracted. Cannot subtract apples from oranges.")
 
     -- units are first converted to the smaller one to perform subtraction
     if units.size[a.unit] < units.size[b.unit] then
@@ -149,7 +176,7 @@ function units_meta.__sub(a, b)
     return units.dim(a.value - b.value, a.unit)
 end
 
-function find_multiplication_relations(a, b)
+local function find_multiplication_relations(a, b)
     for _, rel in ipairs(units.relations) do
         if a.unit==rel.a and b.unit==rel.b then
             return rel
@@ -185,7 +212,7 @@ function units_meta.__mul(a, b)
     error("Multiplication of units by something else is not defined.")
 end
 
-function find_division_relations(c, a_b)
+local function find_division_relations(c, a_b)
     -- finds either a = c / b or b = c / a
     for _, rel in ipairs(units.relations) do
         -- a = c / b
@@ -262,6 +289,11 @@ function units.define(def)
         def.SI_dimension = def.SI_dimension or 1
 
         local prefixes = {
+            Q = 10^30,
+            R = 10^27,
+            Y = 10^24,
+            Z = 10^21,
+            E = 10^18,
             P = 10^15,
             T = 10^12,
             G = 10^9,
@@ -274,6 +306,12 @@ function units.define(def)
             m = 10^-3,
             u = 10^-6,
             n = 10^-9,
+            f = 10^-15,
+            p = 10^-12,
+            a = 10^-18,
+            z = 10^-21,
+            y = 10^-24,
+            r = 10^-30,
         }
 
         for prefix, size in pairs(prefixes) do
@@ -286,6 +324,7 @@ end
 -- adds relation c = a * b
 -- where a = c / b and b = c / a are also valid
 function units.relate(a, b, c)
+    -- TODO - check for nonsense relations
     units.relations[#units.relations+1] = {a=a, b=b, c=c}
 end
 
@@ -300,12 +339,16 @@ function units.import_globals()
         _G[unit] = _G[trueSize]
     end
 
+    for name, const in pairs(units.const) do
+        _G[name] = const
+    end
+
     _G.dim = units.dim
     _G.convert = units.convert
     _G.to = units.convert
 
     -- defines % operator for unit conversion
-    units_meta.__mod = function(a, b)
+    units_meta.__bxor = function(a, b)
         if units.is_unit(a) and units.is_unit(b) then
             return units.convert(a, b.unit)
         elseif units.is_unit(a) and type(b)=="string" then
@@ -318,7 +361,7 @@ end
 -- UNIT DEFINITIONS
 -- 
 -- Mostly stolen from https://frinklang.org/frinkdata/units.txt but only some units are defined.
--- Made more sensible using Wikipedia.
+-- Made more sensible using Wikipedia and https://github.com/sharkdp/purescript-quantities.
 
 -- LENGTH
 
@@ -327,11 +370,14 @@ units.define{name="m", size=1, type="length", SI_prefixes=true}
 -- imperial
 units.define{name="in", alias={"inch"}, size=units.size.cm * 2.54, type="length"}
 units.define{name="ft", alias={"feet", "foot"}, size=units.size['in'] * 12, type="length"}
+units.define{name="yd", alias={"yard"}, size=0.9144, type="length"}
 units.define{name="mi", alias={"mile"}, size=units.size.ft * 5280, type="length"}
 units.define{name="nmi", size=1852, type="length", description="nautical mile"} 
 
 -- astronomical unit
 units.define{name="AU", size=149597870700, type="length"}
+units.define{name="ly", alias={"lightyear"}, size=9460730472580800, type="length"}
+units.define{name="pc", alias={"parsec"}, size=30856775814913673, type="length"}
 
 units.define{name="U", size=units.size.mm * 44.45, type="lenght", description="Rack unit"}
 
@@ -435,11 +481,13 @@ units.define{name="Hz", size=1, type="frequency", SI_prefixes=true}
 
 -- VELOCITY (aka SPEED)
 units.define{name="m_s", alias={"m/s"}, size=1, type="velocity"}
-units.relate('m_s', 'm', 's')
+units.relate('m_s', 's', 'm')
 units.define{name="km_h", alias={"km/h"}, size=units.size.km / units.size.h, type="velocity"}
 units.relate('km_h', 'h', 'km')
 units.define{name="mph", size=units.size.mi / units.size.h, type="velocity"}
 units.define{name="mach", size=units.size.m_s * 331.46, type="velocity"} -- for fighter aircraft
+
+units.const.c = units.dim(299792458, "m_s") -- https://en.wikipedia.org/wiki/Speed_of_light
 
 -- ACCELERATION
 units.define{name="m_s2", size=1, type="acceleration"} -- (https://en.wikipedia.org/wiki/Metre_per_second_squared) nobody uses this unit as it's hardly measurable 
