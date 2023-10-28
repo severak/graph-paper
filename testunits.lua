@@ -3,6 +3,8 @@ local dim = units.dim
 dim = units.dim
 units.import_globals()
 
+local push = table.insert
+
 function dump(o)
     if type(o) == 'table' then
        local s = '{ '
@@ -16,11 +18,23 @@ function dump(o)
     end
  end
 
-print((40*km) / (40*min))
-print((1*km)/h)
-print((100*km)/(120*km_h))
-print(((100*h)/(120*km_h)))
-os.exit()
+
+print "Supported units"
+print "---------------"
+print ""
+
+local push = table.insert
+local supported = {}
+
+for unit_name, unit_size in pairs(units.size) do
+    if not units.is_prefixed[unit_name] then
+        push(supported, units.explain(unit_name))
+    end
+end
+table.sort(supported);
+
+print(table.concat(supported, "\n"))
+print ""
 
 print "Conversion table"
 print "----------------"
@@ -28,16 +42,16 @@ print ""
 
 for unitType, baseUnit in pairs(units.base) do
     print(unitType .. ":")
+    local sorted_by_size = {}
     for unit, size in pairs(units.size) do
         if units.type[unit]==unitType then
-            local type = units.type[unit]
-            local base = units.base[type]
-            if size < 1 then
-                print(string.format("1 %s = %.10g %s (%f)", unit, size, base, size))
-            else 
-                print(string.format("1 %s = %.10g %s", unit, size, base))
-            end
+            push(sorted_by_size, {name=unit, size=size})
         end
+    end
+
+    table.sort(sorted_by_size, function(a, b) return a.size>b.size end)
+    for _, unit in pairs(sorted_by_size) do
+      print(string.format("1 %s = %g %s", unit.name, unit.size, baseUnit))  
     end
     print ""
 end

@@ -6,7 +6,7 @@
 --
 -- (or it crashes even more because of unit conversion errors below:)
 -- 
--- Strongly inspired by Frink language (https://frinklang.org/) and Insect.sh calculator.
+-- Strongly inspired by Frink language (https://frinklang.org/) and Numbat calculator (https://numbat.dev/).
 
 local units = {}
 local units_meta = {}
@@ -35,6 +35,9 @@ units.relations = {}
 -- useful constants
 units.const = {}
 
+-- if this unit is just prefixed other one
+units.is_prefixed = {}
+
 -- format of units when calling tonstring(unit)
 units.format_string = "%.10g %s"
 
@@ -50,9 +53,11 @@ function units.is_unit(val)
     return type(val)=="table" and getmetatable(val)==units_meta
 end
 
-function units.conforms(a, b)
+function units.is_conformal(a, b)
     return units.is_unit(a) and units.is_unit(b) and units.type[a.unit]==units.type[b.unit]
 end
+
+units.conforms = units.is_conformal -- TODO: deprecate this when I am not lazy
 
 function units.unpack(val)
     assert(units.is_unit(val), "Only units can be unpacked")
@@ -61,6 +66,17 @@ end
 
 function units.convert_value(val, unit)
     return val.value * units.size[val.unit] / units.size[unit]
+end
+
+function units.explain(val)
+    if type(val)=="string" then
+        val = units.dim(1, val)
+    end
+    assert(units.is_unit(val), "Only units can be converted!")
+    if units.description[val.unit] then
+        return val.unit .. " (" .. units.type[val.unit] .. " - " ..  units.description[val.unit] .. ")"
+    end
+    return val.unit .. " (" .. units.type[val.unit] .. ")"
 end
 
 function units.convert(val, unit)
@@ -104,7 +120,10 @@ function units.best(val, possible_units)
     return val
 end
 
+-- TODO - units.compound
+
 function units.parse(val)
+    -- TODO - syntax for time in day and angles
     local num, unit = string.match(val, "([%d%.]+)%s-(%S+)")
     if num and unit then
         if units.size[unit] then
@@ -119,34 +138,38 @@ end
 
 -- magic happens here:
 -- (in metatable definition)
+
+-- conversion to string (for printing)
 function units_meta.__tostring(val)
     return string.format(units.format_string, val.value, val.unit)
 end
 
+-- comparing
 function units_meta.__eq(a, b)
     if units.is_unit(a) and units.is_unit(b) and units.conforms(a,b) then
-        return a.value==units.convert_value(b, a.unit)
+        return a.value == units.convert_value(b, a.unit)
     end
     return false
 end
 
 function units_meta.__lt(a, b)
     if units.is_unit(a) and units.is_unit(b) and units.conforms(a,b) then
-        return a.value<units.convert_value(b, a.unit)
+        return a.value < units.convert_value(b, a.unit)
     end
     return false
 end
 
 function units_meta.__le(a, b)
     if units.is_unit(a) and units.is_unit(b) and units.conforms(a,b) then
-        return a.value<=units.convert_value(b, a.unit)
+        return a.value <= units.convert_value(b, a.unit)
     end
     return false
 end
 
+-- plus
 function units_meta.__add(a, b)
     assert(units.is_unit(a) and units.is_unit(b), "Only units can be add together.")
-    assert(units.conforms(a,b), "Only conformal units can be added. Cannot add apples to oranges.")
+    assert(units.conforms(a,b), "You cannot add " .. units.explain(a) .. " to " .. units.explain(b) .. ".")
     
     -- units are first converted to the smaller one to perform addition
     if units.size[a.unit] < units.size[b.unit] then
@@ -160,9 +183,10 @@ function units_meta.__add(a, b)
     return units.dim(a.value + b.value, a.unit)
 end
 
+-- minus
 function units_meta.__sub(a, b)
     assert(units.is_unit(a) and units.is_unit(b), "Only units can be subtracted.")
-    assert(units.conforms(a,b), "Only conformal units can be subtracted. Cannot subtract apples from oranges.")
+    assert(units.conforms(a,b), "You cannot subttract " .. units.explain(b) .. " from " .. units.explain(a) .. ".")
 
     -- units are first converted to the smaller one to perform subtraction
     if units.size[a.unit] < units.size[b.unit] then
@@ -193,6 +217,7 @@ local function find_multiplication_relations(a, b)
     end
 end
 
+-- multiply
 function units_meta.__mul(a, b)
     if units.is_unit(a) and tonumber(b) then
         return units.dim(a.value * tonumber(b), a.unit)
@@ -206,7 +231,7 @@ function units_meta.__mul(a, b)
         if relation then
             return units.dim(units.convert_value(a, relation.a) * units.convert_value(b, relation.b), relation.c)
         end
-        error('Multiplication for ' .. a.unit .. ' and ' .. b.unit .. ' is not defined.')
+        error('Multiplication of ' .. units.explain(a.unit) .. ' and ' .. units.explain(b.unit) .. ' is not defined.')
     end
 
     error("Multiplication of units by something else is not defined.")
@@ -235,6 +260,7 @@ local function find_division_relations(c, a_b)
     end
 end
 
+-- divide
 function units_meta.__div(a, b)
     if units.is_unit(a) and tonumber(b) then
         return units.dim(a.value / tonumber(b), a.unit)
@@ -256,14 +282,20 @@ function units_meta.__div(a, b)
                 return units.dim(units.convert_value(a, relation.c) / units.convert_value(b, relation.b), relation.a)
             end
         end
-        error('Division of ' .. a.unit .. ' by ' .. b.unit .. ' is not defined.')
+        error('Division of ' .. units.explain(a.unit) .. ' by ' .. units.explain(b.unit) .. ' is not defined.')
     end
 
     error("Division of units by something else is not defined.")
 end
 
+-- unit definition
 function units.define(def)
-    assert(def,name, "Undefined unit name!")
+    assert(def.name, "Unit name not defined!")
+    
+    if units.size[def.name] and not def.redefine then
+        error("Unit " .. def.name .. " is already defined!")
+    end
+
     units.size[def.name] = def.size or error("Undefined unit size!")
     units.type[def.name] = def.type or error("Undefined unit type!")
     
@@ -317,6 +349,29 @@ function units.define(def)
         for prefix, size in pairs(prefixes) do
             units.size[prefix .. def.name] = def.size * (size ^ def.SI_dimension)
             units.type[prefix .. def.name] = def.type
+            units.is_prefixed[prefix .. def.name] = true
+        end 
+    end
+
+    if def.binary_prefixes then
+        -- https://en.wikipedia.org/wiki/Binary_prefix
+        def.SI_dimension = def.SI_dimension or 1
+
+        local prefixes = {
+            Yi = 1024^8,
+            Zi = 1024^7,
+            Ei = 1024^6,
+            Pi = 1024^5,
+            Ti = 1024^4,
+            Gi = 1024^3,
+            Mi = 1024^2,
+            Ki = 1024
+        }
+
+        for prefix, size in pairs(prefixes) do
+            units.size[prefix .. def.name] = def.size * size
+            units.type[prefix .. def.name] = def.type
+            units.is_prefixed[prefix .. def.name] = true
         end 
     end
 end
@@ -328,10 +383,12 @@ function units.relate(a, b, c)
     units.relations[#units.relations+1] = {a=a, b=b, c=c}
 end
 
-
-
--- pollutes _G with definited units, dim and convert functions
+-- pollutes _G with definited units and constants, enables ~ operator
 function units.import_globals()
+    for name, const in pairs(units.const) do
+        _G[name] = const
+    end
+    
     for unit, size in pairs(units.size) do
         _G[unit] = units.dim(1, unit)
     end
@@ -339,15 +396,7 @@ function units.import_globals()
         _G[unit] = _G[trueSize]
     end
 
-    for name, const in pairs(units.const) do
-        _G[name] = const
-    end
-
-    _G.dim = units.dim
-    _G.convert = units.convert
-    _G.to = units.convert
-
-    -- defines % operator for unit conversion
+    -- defines ~ operator for unit conversion
     units_meta.__bxor = function(a, b)
         if units.is_unit(a) and units.is_unit(b) then
             return units.convert(a, b.unit)
@@ -362,58 +411,60 @@ end
 -- 
 -- Mostly stolen from https://frinklang.org/frinkdata/units.txt but only some units are defined.
 -- Made more sensible using Wikipedia and https://github.com/sharkdp/purescript-quantities.
+-- See also https://numbat.dev/doc/list-units.html
 
 -- LENGTH
 
-units.define{name="m", size=1, type="length", SI_prefixes=true}
+units.define{name="m", size=1, type="length", SI_prefixes=true, description="metre"}
 
 -- imperial
-units.define{name="in", alias={"inch"}, size=units.size.cm * 2.54, type="length"}
-units.define{name="ft", alias={"feet", "foot"}, size=units.size['in'] * 12, type="length"}
-units.define{name="yd", alias={"yard"}, size=0.9144, type="length"}
-units.define{name="mi", alias={"mile"}, size=units.size.ft * 5280, type="length"}
+units.define{name="in", alias={"inch"}, size=units.size.cm * 2.54, type="length", description="inch"}
+units.define{name="ft", alias={"feet", "foot"}, size=units.size['in'] * 12, type="length", description="foot"}
+units.define{name="yd", alias={"yard"}, size=0.9144, type="length", description="yard"}
+units.define{name="mi", alias={"mile"}, size=units.size.ft * 5280, type="length", description="mile"}
 units.define{name="nmi", size=1852, type="length", description="nautical mile"} 
 
 -- astronomical unit
-units.define{name="AU", size=149597870700, type="length"}
-units.define{name="ly", alias={"lightyear"}, size=9460730472580800, type="length"}
-units.define{name="pc", alias={"parsec"}, size=30856775814913673, type="length"}
+units.define{name="AU", size=149597870700, type="length", description="astronomical unit"}
+units.define{name="ly", alias={"lightyear"}, size=9460730472580800, type="length", description="light-year"}
+units.define{name="pc", alias={"parsec"}, size=30856775814913673, type="length", description="parserc"}
 
 units.define{name="U", size=units.size.mm * 44.45, type="lenght", description="Rack unit"}
 
 -- TODO - typographical units
 
 -- TIME
-units.define{name="s", size=1, type="time"}
-units.define{name="min", size=units.size.s * 60, type="time"}
-units.define{name="h", size=units.size.min * 60, type="time"}
-units.define{name="day", size=units.size.h * 24, type="time"}
-units.define{name="week", size=units.size.day * 7, type="time"}
-units.define{name="year", size=units.size.day * 365, type="time"}
+units.define{name="s", alias={"second"}, size=1, type="time", SI_prefixes=true, description="second"}
+units.define{name="min", alias={"minute"}, size=units.size.s * 60, type="time", description="minute"}
+units.define{name="h", alias={"hour"}, size=units.size.min * 60, type="time", description="hour"}
+units.define{name="day", size=units.size.h * 24, type="time", description="day"}
+units.define{name="week", size=units.size.day * 7, type="time", description="week"}
+units.define{name="year", size=units.size.day * 365.25, type="time", description="Julian year"}
 
 -- we do not definte calendar operations in this library
 
 -- MASS
-units.define{name="g", size=1/1000, type="mass", SI_prefixes=true}
+units.define{name="g", size=1/1000, type="mass", SI_prefixes=true, description="gram"}
 units.base.mass = "kg" -- base unit for weight is kilogram, but it got prefix so we need to force it to be base unit
+units.description.kg = "kilogram"
 
 units.define{name="t", size=units.size.kg * 1000, type="mass", description="metric ton"}
 
 -- imperial (https://en.wikipedia.org/wiki/Avoirdupois)
-units.define{name="lb", alias={"pound"}, size=units.size.kg * 0.45359237, type="mass"}
-units.define{name="oz", alias={"ounce"}, size=units.size.lb * 1/16, type="mass"}
+units.define{name="lb", alias={"pound"}, size=units.size.kg * 0.45359237, type="mass", description="Avoirdupois pound"}
+units.define{name="oz", alias={"ounce"}, size=units.size.lb * 1/16, type="mass", description="Avoirdupois ounce"}
 -- https://en.wikipedia.org/wiki/Stone_(unit)#Modern_use
-units.define{name="stone", size=units.size.kg * 6.350, type="mass"}
+units.define{name="stone", size=units.size.kg * 6.350, type="mass", description="stone"}
 
 -- https://en.wikipedia.org/wiki/Troy_weight
-units.define{name="ozt", size=units.size.g * 31.10, alias={"oz t"}, type="mass"} -- for gold
+units.define{name="ozt", size=units.size.g * 31.10, alias={"oz t"}, type="mass", description="Troy ounce"} -- for gold
 
 -- CURRENT
-units.define{name="A", size=1, type="current", SI_prefixes=true} -- ampere
+units.define{name="A", alias={"ampere", "amp"}, size=1, type="current", SI_prefixes=true, description="ampere"} -- ampere
 
 -- TEMPERATURE
 local fromK = function(val, unit)
-    if unit=='C' then return units.dim(val.value - 273.15, "C") end
+    if unit=='_C' then return units.dim(val.value - 273.15, "C") end
     if unit=='F' then return units.dim(1.8 * val.value - 459.67, "F") end
     if unit=='R' then return units.dim(1.8 * val.value, "R") end
 end
@@ -427,65 +478,74 @@ units.define{name="R", alias={"°R"}, size=5/9, type="temperature", description=
 local fromC = function(val, unit) 
     if unit=='K' then return units.dim(val.value + 273.15, "K") end
     if unit=='R' then return units.dim((val.value +  273.15) * (9/5), "R") end
-    if unit=='F' then return units.dim((val.value * (9/5)) + 32, "F") end
+    if unit=='_F' then return units.dim((val.value * (9/5)) + 32, "F") end
 end
 
-units.define{name="C", alias={"°C"}, size=1, type="temperature_celsius", explicit_convert=fromC}
+units.define{name="_C", alias={"°C"}, size=1, type="temperature Celsius", explicit_convert=fromC}
 
 -- see https://en.wikipedia.org/wiki/Fahrenheit
 local fromF = function(val, unit)
-    if unit=='C' then return units.dim((val.value - 32) * (5/9), "C") end
+    if unit=='_C' then return units.dim((val.value - 32) * (5/9), "C") end
     if unit=='K' then return units.dim((val.value + 459.67) * (5/9), "K") end
     if unit=='R' then return units.dim(val.value + 459.67, "R") end
 end
 
-units.define{name="F", alias={"°F"}, size=1, type="temperature_farenheit", explicit_convert=fromF}
+units.define{name="_F", alias={"°F"}, size=1, type="temperature Farenheit", explicit_convert=fromF, description="Farenheit"}
 
 -- AMOUNT OF SUBSTANCE (MOL)
-units.define{name="mol", size=1, type="amount_of_substance"}
+units.define{name="mol", size=1, type="amount of substance"}
 
 -- ANGLE
-units.define{name="turn", size=1, type="angle"} -- I am deviating from official definition to have circle as definition of angle units
-units.define{name="rad", size=1/(2*math.pi), type="angle"} -- 2 pi radian = 1 circle
-units.define{name="deg", size=1/360, type="angle"}
+units.define{name="turn", size=1, type="angle", description="full circle"} -- I am deviating from official definition to have circle as definition of angle units
+units.define{name="rad", alias={"radian"}, size=1/(2*math.pi), type="angle", description="radian"} -- 2 pi radian = 1 circle
+units.define{name="deg", alias={"°"}, size=1/360, type="angle", description="degree of arc"}
+units.define{name="arcmin", alias={"'", "′"}, size=1/360, type="angle", description="arc minute"}
+units.define{name="arcsec", alias={'"', '″'}, size=1/360, type="angle", description="arc second"}
+units.define{name="gradian", alias={"gon", "grad", "grade"}, size=1/400, type="angle", description="gradian"}
+
 
 -- INFORMATION
-units.define{name="b", size=1, type="information", SI_prefixes=true}
-units.define{name="B", size=8, type="information", SI_prefixes=true}
--- TODO - sort out kiB vs kb etc... 1024-based units are mess
+units.define{name="b", alias={"bit"}, size=1, type="information", SI_prefixes=true, binary_prefixes=true, description="bit"}
+units.define{name="B", alias={"byte"}, size=8, type="information", SI_prefixes=true, binary_prefixes=true, description="byte"}
 
+-- TODO https://en.wikipedia.org/wiki/Data-rate_units
 
 -- LUMINOUS INTENSITY (CANDELA)
-units.define{name="cd", alias={"candela"}, size=1, type="luminous_intensity"}
+units.define{name="cd", alias={"candela"}, size=1, type="luminous intensity", description="candela"}
 
 --- derived units: 
 -- (based on https://en.wikipedia.org/wiki/International_System_of_Units#Derived_units)
 -- (and https://en.wikipedia.org/wiki/File:Physics_measurements_SI_units.png)
 
 -- AREA
-units.define{name="m2", alias={"m²"}, size=1, type="area", SI_prefixes=true, SI_dimension=2}
+units.define{name="m2", alias={"m²"}, size=1, type="area", SI_prefixes=true, SI_dimension=2, description="square metre"}
 units.relate('m', 'm', 'm2')
 
 -- VOLUME
-units.define{name="m3", alias={"m³"}, size=1, type="volume", SI_prefixes=true, SI_dimension=3}
+units.define{name="m3", alias={"m³"}, size=1, type="volume", SI_prefixes=true, SI_dimension=3, description="cubic metre"}
 units.relate('m2', 'm', 'm3')
 units.define{name="cc", size=units.size.cm3, type="volume"} -- for motocycle engines :-)
-units.define{name="l", size=units.size.m3 * (1/1000), type="volume", SI_prefixes=true}
-
+units.define{name="l", alias={"liter", "litre"}, size=units.size.m3 * (1/1000), type="volume", SI_prefixes=true, description="litre"}
 
 units.define{name="barrel", size=units.size.l * 158.987, type="volume"} -- for oil
 
 -- FREQUENCY
-units.define{name="Hz", size=1, type="frequency", SI_prefixes=true}
+units.define{name="Hz", alias={"cps"}, size=1, type="frequency", SI_prefixes=true, description="hertz"}
 -- TODO - Hz to meters of wavelenght and vice versa -  https://commsbrief.com/wavelength-calculator-calculating-wavelength-of-radio-waves/
 
+units.define{name="BPM", size=units.size.Hz/60, type="frequency", description="beats per minute"}
+units.define{name="rpm", size=units.size.Hz/60, type="frequency", description="revolutions per minute"}
+
+units.relate("rpm", "min", "turn")
+
 -- VELOCITY (aka SPEED)
-units.define{name="m_s", alias={"m/s"}, size=1, type="velocity"}
+units.define{name="m_s", alias={"m/s"}, size=1, type="velocity", description="metre per second"}
 units.relate('m_s', 's', 'm')
-units.define{name="km_h", alias={"km/h"}, size=units.size.km / units.size.h, type="velocity"}
+units.define{name="km_h", alias={"km/h"}, size=units.size.km / units.size.h, type="velocity", description="kilometer per hour"}
 units.relate('km_h', 'h', 'km')
-units.define{name="mph", size=units.size.mi / units.size.h, type="velocity"}
+units.define{name="mph", size=units.size.mi / units.size.h, type="velocity", description="miles per hour"}
 units.define{name="mach", size=units.size.m_s * 331.46, type="velocity"} -- for fighter aircraft
+units.define{name="kn", alias={"knot"}, size=units.size.nmi / units.size.h, type="velocity", description="knot"} -- for aircraft and boats
 
 units.const.c = units.dim(299792458, "m_s") -- https://en.wikipedia.org/wiki/Speed_of_light
 
@@ -493,34 +553,73 @@ units.const.c = units.dim(299792458, "m_s") -- https://en.wikipedia.org/wiki/Spe
 units.define{name="m_s2", size=1, type="acceleration"} -- (https://en.wikipedia.org/wiki/Metre_per_second_squared) nobody uses this unit as it's hardly measurable 
 units.relate('m_s2', 's', 'm_s') -- I have it there only for Newton definition
 
+units.const.g = units.dim(9.80665, "m_s2")
+
 -- FORCE
-units.define{name="N", alias={"newton"}, size=1, type="force", SI_prefixes=true}
+units.define{name="N", alias={"newton"}, size=1, type="force", SI_prefixes=true, description="newton"}
 units.relate('kg', 'm_s2', 'N')
 
 -- PRESSURE
-units.define{name="Pa", alias={"pascal"}, size=1, type="pressure", SI_prefixes=true}
+units.define{name="Pa", alias={"pascal"}, size=1, type="pressure", SI_prefixes=true, description="pascal"}
 units.relate("N", "Pa", "m2")
-units.define{name="bar", size=units.size.kPa*100, type="pressure", SI_prefixes=true}
-units.define{name="atm", alias={"atmosphere"}, size=units.size.kPa*101.325, type="pressure"}
--- meterologists use mbar, aviators hPa
+units.define{name="bar", size=units.size.kPa * 100, type="pressure", SI_prefixes=true}
+units.define{name="atm", alias={"atmosphere"}, size=units.size.kPa*101.325, type="pressure", description="standard atmosphere"}
+-- meterologists use mbar, aviators hPa, both means is the same quantity
+units.define{name="psi", size=units.size.kPa * 6.894757, type="pressure", description="pound per square inch"}
+units.define{name="ksi", size=units.size.MPa * 6.895, type="pressure", description="kilopound per square inch"}
+units.define{name="Mpsi", size=units.size.GPa * 6.894757, type="pressure", description="megapound per square inch"}
+units.define{name="Torr", size=units.size.atm / 760, type="pressure"}
 
 -- ENERGY
-units.define{name="J", alias={"joule"}, size=1, type="", SI_prefixes=true}
+units.define{name="J", alias={"joule"}, size=1, type="energy", SI_prefixes=true, description="joule"}
 units.relate("N", "m", "J")
--- TODO kWh, calorie
+units.define{name="cal", alias={"c", "calorie"}, size=units.size.J * 4.1868, type="energy", description="calorie", SI_prefixes=true}
+units.define{name="Wh", size=units.size.J * 3600, type="energy", SI_prefixes=true, description="Watt-hour"}
+units.define{name="BTU", size=units.size.kJ * 1.0551, type="energy", description="British thermal unit"}
 
 -- POWER
-units.define{name="W", alias={"watt"}, size=1, type="", SI_prefixes=true}
-units.relate("W", "s", "J") -- TODO check if this is OK
+units.define{name="W", alias={"watt"}, size=1, type="power", SI_prefixes=true, description="watt"}
+units.relate("W", "s", "J")
 
--- TODO all eletrical units - volts, ohms etc...
+-- ELECTRICAL UNITS
+units.define{name="C", alias={"Coulomb"}, size=1, type="electric charge", SI_prefixes=true, description="Coulomb"}
+units.relate("A", "s", "C")
+
+-- elementary charge
+units.const.e = units.dim(1.602176634e-19, "C")
+
+units.define{name="V", alias={"volt"}, size=1, type="electric potential", SI_prefixes=true, description="Volt"}
+units.relate("J", "C", "V")
+units.relate("W", "A", "V")
+
+units.define{name="ohm", alias={"Ω"}, size=1, type="electric resistance", SI_prefixes=true, description="Ohm"}
+units.relate("ohm", "A", "V")
+
+units.define{name="S", alias={"siemens"}, size=1, type="electric conductance", SI_prefixes=true, description="Siemens"}
+units.relate("S", "V", "A")
+
+units.define{name="F", alias={"farad"}, size=1, type="electric conductance", SI_prefixes=true, description="Siemens"}
+units.relate("F", "V", "C")
+
+--[[
+TODO
+
+weber :=               V s         // magnetic flux
+weber ||| magnetic_flux
+Wb :=                  weber
+
+henry :=               Wb/A        // inductance
+henry ||| inductance
+henries :=             henry       // Irregular plural
+H :=                   henry
+
+tesla :=               Wb/m^2      // magnetic flux density
+tesla ||| magnetic_flux_density
+T :=                   tesla
+
+]]
 
 -- TODO all radioactive units
-
--- TODO 
--- old czech units -  http://www.geneze.info/pojmy/subdir/stare_ceske_jednotky.htm, http://www.jankopa.cz/wob/PH_001.html a https://plzen.rozhlas.cz/loket-pid-nebo-latro-znate-stare-miry-a-vahy-6737273
-
--- TODO - musical units - BPM, PPQN
 
 -- some sanity checks if logic it's not broken
 local dim = units.dim
