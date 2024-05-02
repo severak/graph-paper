@@ -166,14 +166,33 @@ If you want to display optimal unit for result of your computation use `units.be
 1 h
 ```
 
-Note that first unit smaller than converted value is selected which can lead to decimal numbers, e.g.:
+It tries to choose optimal unit without using decimal numbers if possible, but sometimes it's not possible:
 
 ```
-> units.best(1435*mm, {km, m, cm, mm})
-1.435 m
+> units.best(106*cm, {km, m, cm, mm})
+106 cm
+> units.best(3*ft, {km, m, cm, mm})
+91.44 cm
 ```
 
-*TBS - units.compound*
+You can also use `units.compound` to express value as sum of different units. This works great for times and railway gauges:
+
+```
+> units.compound(775*min, {day, h, min, s})
+12 h 55 min
+> units.compound(1067*mm, {ft, inch})
+3 ft 6 in
+```
+
+Note that compound function it's not exact and silently throws away any decimal places of last displayed unit:
+```
+> 3*ft + 6*inch == 1067 * mm
+false
+> 3*ft + 6*inch < 1067*mm
+true
+> 3*ft + 6*inch ~ mm
+1066.8 mm
+```
 
 ## functions reference
 
@@ -184,6 +203,7 @@ Note that first unit smaller than converted value is selected which can lead to 
 - `units.convert(val, unit)` - converts `val` to other unit `unit`
 - `units.convert_value(val, unit)` - converts `val` to other unit `unit` and returns numeric value only (useful for doing some more involved computation)
 - `units.best(val, {possible_units...})` - chooses optimal unit for presentation
+- `units.compound(val, {possible_units...})` - split value into sum of different smaller units
 - `units.parse(val)` - parses unit from textual description, if it cannot parse it returns `nil`
 - `units.define(def)` - defines new unit, see *custom units* below
 - `units.relate(a, b, c)` - adds unit relation `c = a * b` where `a = c / b` and `b = c / a` are also valid
@@ -251,6 +271,9 @@ How long does it take for light from Sun to reach the Earth?
 > 1*AU / c ~ min
 8.316746397 min
 ```
+
+-- TODO fix - c už není v _G
+
 
 *TBD - speed of sound under the bridge*
 

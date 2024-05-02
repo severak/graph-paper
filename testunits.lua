@@ -19,6 +19,32 @@ function dump(o)
  end
 
 
+--[[
+print(-cm)
+print(30*m2 // ft)
+print(30*m / ft)
+print(30*m // ft)
+print(units.compound(206*cm, {km, m, cm, mm}))
+print(units.compound(1067*mm, {ft, inch}))
+print(units.compound(1524*mm, {ft, inch}))
+print(units.compound(43200*s, {year, day, h, min, s}))
+print(units.compound(86400*s, {year, day, h, min, s}))
+print(units.compound(10, {year, day, h, min, s}))
+os.exit()
+print(3*ft + 6*inch)
+print(3*ft + 6*inch ~ mm)
+print(units.best(3*ft + 6*inch, {km, m, cm, mm})) 
+print(units.best(106*cm, {km, m, cm, mm})) 
+print(units.best(106*cm, {km, m, mm})) 
+print(units.best(106*cm, {km, m})) 
+print(units.best(1067*mm, {inch, ft, yd})) 
+-- print(units.convert(106*cm, 'kg'))
+print(-cm)
+print((106*cm) % m)
+print((106*cm) // m)
+]]
+
+
 print "Supported units"
 print "---------------"
 print ""
@@ -56,3 +82,13 @@ for unitType, baseUnit in pairs(units.base) do
     print ""
 end
 
+print ""
+print "Relations"
+print "---------"
+print ""
+for ord, rel in ipairs(units.relations) do 
+    print(string.format("%s = %s * %s", rel.c, rel.a, rel.b))
+    print(string.format("%s = %s / %s", rel.a, rel.c, rel.b))
+    print(string.format("%s = %s / %s", rel.b, rel.c, rel.a))
+    print ""
+end

@@ -93,7 +93,7 @@ function units.convert(val, unit)
         end
     end
 
-    assert(units.type[val.unit]==units.type[unit], "Cannot convert to different type of unit!")
+    assert(units.type[val.unit]==units.type[unit], "Cannot convert " .. units.explain(val) .. " to " .. units.explain(unit))
     if val.unit==unit then
         return val -- target unit same as source unit
     end
@@ -108,10 +108,18 @@ function units.best(val, possible_units)
         if type(candidate)=='string' then
             possible_units[i] = units.dim(1, candidate)
         end
-        assert(units.conforms(prev, candidate), "Possible units are not conformal.")
+        assert(units.conforms(prev, candidate), "Possible units are not conformal - " ..units.explain(prev) .. " vs " .. units.explain(candidate) .. ".")
         prev = candidate
     end
     table.sort(possible_units, function(a, b) return a>b end)
+    for i, candidate in ipairs(possible_units) do
+        if val >= candidate then
+            local intpart, fracpart = math.modf(units.convert_value(val, candidate.unit))
+            if fracpart==0 then
+                return units.convert(val, candidate.unit)
+            end
+        end
+    end
     for i, candidate in ipairs(possible_units) do
         if val >= candidate then
             return units.convert(val, candidate.unit)
@@ -120,7 +128,29 @@ function units.best(val, possible_units)
     return val
 end
 
--- TODO - units.compound
+function units.compound(val, possible_units)
+    assert(units.is_unit(val), "Only units can be displayed as compounds.")
+    assert(#possible_units>0, "Please provide units to choose from.")
+    local prev = val
+    for i, candidate in ipairs(possible_units) do
+        if type(candidate)=='string' then
+            possible_units[i] = units.dim(1, candidate)
+        end
+        assert(units.conforms(prev, candidate), "Possible units are not conformal - " ..units.explain(prev) .. " vs " .. units.explain(candidate) .. ".")
+        prev = candidate
+    end
+    table.sort(possible_units, function(a, b) return a>b end)
+    local parts = {}
+    local rest = val
+    for i, candidate in ipairs(possible_units) do
+        if rest >= candidate then
+            part = units.dim(math.floor(rest / candidate), candidate.unit)
+            parts[#parts+1] = tostring(part)
+            rest = rest - part
+        end
+    end
+    return table.concat(parts, ' ')
+end
 
 function units.parse(val)
     -- TODO - syntax for time in day and angles
@@ -237,9 +267,27 @@ function units_meta.__mul(a, b)
     error("Multiplication of units by something else is not defined.")
 end
 
+-- unary minus is just unit * -1
+function units_meta.__unm(a)
+    return a * -1
+end
+
+function units_meta.__pow(a, b)
+    if b==1 then
+        return a
+    elseif b==2 then
+        return a * a        
+    elseif b==3 then
+        return a * a * a
+    else
+        error("Exponentiation not defined for units and other indexes than 1, 2 or 3.")
+    end
+end
+
 local function find_division_relations(c, a_b)
     -- finds either a = c / b or b = c / a
-    for _, rel in ipairs(units.relations) do
+    for i=#units.relations,1,-1 do -- (walking through relations in reversed order)
+        local rel = units.relations[i]
         -- a = c / b
         if c.unit==rel.c and a_b.unit==rel.b then
             return rel, "b"
@@ -287,6 +335,17 @@ function units_meta.__div(a, b)
 
     error("Division of units by something else is not defined.")
 end
+
+function units_meta.__idiv(a, b)
+    local c = units_meta.__div(a, b)
+    if type(c)=="number" then
+        return math.floor(c)
+    elseif units.is_unit(c) then
+        return units.dim(math.floor(c.value), c.unit)
+    end
+end
+
+-- TODO __mod
 
 -- unit definition
 function units.define(def)
@@ -509,6 +568,14 @@ units.define{name="b", alias={"bit"}, size=1, type="information", SI_prefixes=tr
 units.define{name="B", alias={"byte"}, size=8, type="information", SI_prefixes=true, binary_prefixes=true, description="byte"}
 
 -- TODO https://en.wikipedia.org/wiki/Data-rate_units
+-- TODO baud
+
+units.define{name="bps", alias={"bit/s"}, size=1, type="bit rate", SI_prefixes=true, binary_prefixes=true}
+units.relate("bps", "s", "b")
+units.define{name="Bps", alias={"B/s"}, size=8, type="bit rate", SI_prefixes=true, binary_prefixes=true}
+units.relate("Bps", "s", "B")
+-- baud can be equal to bps but it's not always the case, so baud is left as a exercise of the reader
+-- http://www.textfiles.com/apple/bitsbaud.txt
 
 -- LUMINOUS INTENSITY (CANDELA)
 units.define{name="cd", alias={"candela"}, size=1, type="luminous intensity", description="candela"}
