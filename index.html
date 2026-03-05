@@ -9,13 +9,13 @@
     <meta property="og:title" content="Severák's Graph Paper" />
     <meta property="og:image" content="https://severak.github.io/cyber-music-studio/img/preview.png" />
     <meta property="og:type" content="website" />
-    <meta property="og:description" content="not your usual DAW" />
-    <script>if(!sessionStorage.getItem("_swa")&&document.referrer.indexOf(location.protocol+"//"+location.host)!== 0){fetch("https://counter.dev/track?"+new URLSearchParams({referrer:document.referrer,screen:screen.width+"x"+screen.height,user:"severak",utcoffset:"1"}))};sessionStorage.setItem("_swa","1");</script>
+    <meta property="og:description" content="CAD for primitive technology" />
     <script src="js/uboot.js"></script>
     <style>
         body {
             font-family: "Lucida Console", monospace;
-            background: url("img/beta.jpg") #000 no-repeat fixed top center/cover;
+            background-image: url("css/bg.png");
+            background-color: darkslateblue;
         }
 
         .ub-box {
@@ -24,6 +24,7 @@
         }
 
         a { color: black; text-decoration-style: dashed; }
+        canvas { border: 1px solid lightgray; background-color: white; }
 
         .ub-container {
             max-width: 60em !important;
@@ -36,28 +37,31 @@
 
 <div class="ub-container">
     <div class="ub-box">
-        <h1>Graph Paper</h1>
+        <h1>Graph Paper Prototype</h1>
         <canvas id="paper" width="640" height="480"></canvas>
+        <p>Use following text field to edit model above. Please refer to <a href="https://github.com/severak/graph-paper/blob/main/doc/file-format.md" target="_blank">file format documentation</a>.</p>
+        <p>Click outside of text field to update model.</p>
         <form>
             <textarea rows="30" cols="80" id="inp">
-# cassete model
-# okraje
+# cassette tape model (handwritten and incomplete)
+# measurements taken from https://www.reddit.com/r/cassetteculture/comments/1kallce/does_anyone_have_a_picture_showing_all_of_the/
+units: mm
+# as pixels are smaller than mm we need to zoom a bit:
+zoom: 4.5
+# cassette borders:
 L 0 0 100 0
 L 0 0 0 60
 L 100 0 100 60
 L 0 60 100 60
-# hlavni kolecka
+# spools:
 C 29.25 28.747 5
 C 70.75 28.747 5
-# vnejsi ramecek
+# outer frame:
 L 6 5.5 94 5.5
 L 6 45 94 45
 L 6 5.5 6 45
 L 94 5.5 94 45
-# prostredni ramecek
-
-
-# kolecka v rozich
+# circles in corners:
 C 3 3 2.5
 C 3 3 2
 C 97 3 2.5
@@ -66,8 +70,6 @@ C 3 57 2.5
 C 3 57 2
 C 97 57 2.5
 C 97 57 2
-
-
             </textarea>
         </form>
     </div>
@@ -78,7 +80,9 @@ function redraw() {
     var paper = document.getElementById('paper');
     var lines = document.getElementById('inp').value.split('\n');
     var ctx = paper.getContext('2d');
-    var pxunit = 5;
+    var pxunit = 1;
+    var offx = 0;
+    var offy = 0;
 
     ctx.clearRect(0, 0, paper.width, paper.height);
 
@@ -98,26 +102,23 @@ function redraw() {
             if (params[0]=='zoom:') {
                 pxunit = params[1];
             }
+            if (params[0]=='offset:') {
+                offx = parseFloat(params[1]);
+                offy = parseFloat(params[2]);
+            }
             if (params[0]=='P') {
-                ctx.fillRect((params[1] * pxunit)-2, (params[2] * pxunit)-2, 4, 4);
+                ctx.fillRect((offx+params[1] * pxunit)-2, (offy+params[2] * pxunit)-2, 4, 4);
             }
             if (params[0]=='L') {
                 ctx.beginPath();
-                ctx.moveTo(params[1] * pxunit, params[2] * pxunit);
-                ctx.lineTo(params[3] * pxunit, params[4] * pxunit);
+                ctx.moveTo(offx+params[1] * pxunit, offy+params[2] * pxunit);
+                ctx.lineTo(offx+params[3] * pxunit, offy+params[4] * pxunit);
                 ctx.closePath();
                 ctx.stroke();
             }
             if (params[0]=='C') {
                 ctx.beginPath();
-                ctx.ellipse(params[1] * pxunit, params[2] * pxunit, params[3] * pxunit, params[3] * pxunit, 0, 0, 2 * Math.PI);
-                ctx.stroke();
-            }
-            if (params[0]=='X') {
-                // todo - this is just point drawing but somewhat obfuscated
-                ctx.beginPath();
-                ctx.ellipse(params[1] * pxunit, params[2] * pxunit, 3 * pxunit, 3 * pxunit, 0, 0, 2 * Math.PI);
-                ctx.fill();
+                ctx.ellipse(offx+params[1] * pxunit, offy+params[2] * pxunit, params[3] * pxunit, params[3] * pxunit, 0, 0, 2 * Math.PI);
                 ctx.stroke();
             }
         }
