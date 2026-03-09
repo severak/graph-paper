@@ -277,6 +277,8 @@ How long does it take for light from Sun to reach the Earth?
 
 *TBD - speed of sound under the bridge*
 
+*TBD - drum rolls at high BPM*
+
 *TBD distance to lightning*
 
 *Grace Hooper wire*
@@ -284,3 +286,13 @@ How long does it take for light from Sun to reach the Earth?
 http://dataphys.org/list/grace-hopper-nanoseconds/
 
 *TBD - Mars Climate Orbiter - Ns vs lbf impulse*
+
+## TBD
+
+- not implemented units
+- decibels and stuff
+- floating point equivalence
+- logical lapses
+- no calendar operations!
+- other limitations
+- link to https://github.com/tjenni/lua-physical

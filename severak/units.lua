@@ -174,10 +174,16 @@ function units_meta.__tostring(val)
     return string.format(units.format_string, val.value, val.unit)
 end
 
+-- compares two floats - see https://www.whoop.ee/post/how-to-compare-floating-point-numbers-in-lua.html
+local function compareNumbers(a, b, epsilon)
+    epsilon = epsilon or 1e-6
+    return a == b or math.abs(a - b) < epsilon
+end
+
 -- comparing
 function units_meta.__eq(a, b)
     if units.is_unit(a) and units.is_unit(b) and units.conforms(a,b) then
-        return a.value == units.convert_value(b, a.unit)
+        return compareNumbers(a.value, units.convert_value(b, a.unit))
     end
     return false
 end
@@ -491,6 +497,10 @@ units.define{name="pc", alias={"parsec"}, size=30856775814913673, type="length",
 units.define{name="U", size=units.size.mm * 44.45, type="lenght", description="Rack unit"}
 
 -- TODO - typographical units
+-- https://en.wikipedia.org/wiki/Twip
+-- https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Styling_basics/Values_and_units
+-- https://en.wikipedia.org/wiki/Point_(typography)
+-- https://en.wikipedia.org/wiki/Dots_per_inch
 
 -- TIME
 units.define{name="s", alias={"second"}, size=1, type="time", SI_prefixes=true, description="second"}
@@ -500,7 +510,7 @@ units.define{name="day", size=units.size.h * 24, type="time", description="day"}
 units.define{name="week", size=units.size.day * 7, type="time", description="week"}
 units.define{name="year", size=units.size.day * 365.25, type="time", description="Julian year"}
 
--- we do not definte calendar operations in this library
+-- we do not define calendar operations in this library
 
 -- MASS
 units.define{name="g", size=1/1000, type="mass", SI_prefixes=true, description="gram"}
@@ -558,8 +568,8 @@ units.define{name="mol", size=1, type="amount of substance"}
 units.define{name="turn", size=1, type="angle", description="full circle"} -- I am deviating from official definition to have circle as definition of angle units
 units.define{name="rad", alias={"radian"}, size=1/(2*math.pi), type="angle", description="radian"} -- 2 pi radian = 1 circle
 units.define{name="deg", alias={"°"}, size=1/360, type="angle", description="degree of arc"}
-units.define{name="arcmin", alias={"'", "′"}, size=1/360, type="angle", description="arc minute"}
-units.define{name="arcsec", alias={'"', '″'}, size=1/360, type="angle", description="arc second"}
+units.define{name="arcmin", alias={"'", "′"}, size=1/360/60, type="angle", description="arc minute"}
+units.define{name="arcsec", alias={'"', '″'}, size=1/360/60/60, type="angle", description="arc second"}
 units.define{name="gradian", alias={"gon", "grad", "grade"}, size=1/400, type="angle", description="gradian"}
 
 
@@ -636,6 +646,7 @@ units.define{name="psi", size=units.size.kPa * 6.894757, type="pressure", descri
 units.define{name="ksi", size=units.size.MPa * 6.895, type="pressure", description="kilopound per square inch"}
 units.define{name="Mpsi", size=units.size.GPa * 6.894757, type="pressure", description="megapound per square inch"}
 units.define{name="Torr", size=units.size.atm / 760, type="pressure"}
+-- todo https://en.wikipedia.org/wiki/Inch_of_mercury
 
 -- ENERGY
 units.define{name="J", alias={"joule"}, size=1, type="energy", SI_prefixes=true, description="joule"}
@@ -692,5 +703,10 @@ T :=                   tesla
 local dim = units.dim
 assert(dim(100, "cm") == dim(1, "m")) 
 assert(dim(1, "m") + dim(6, "cm") == dim(106, "cm"))
+
+-- TODO - do zvlášního souboru test 100*cm==1*m a otestovat v práci
+print(units.convert_value(dim(100,'cm'), 'cm'))
+print(units.convert_value(dim(1,'m'), 'cm'))
+assert( units.convert_value(dim(100,'cm'), 'cm') == units.convert_value(dim(1,'m'), 'cm') , 'nerovno')
 
 return units
