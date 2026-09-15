@@ -39,7 +39,7 @@ There are currently three implementations of this format:
 
 - LÖVE based app
 - [browser based editor](https://severak.github.io/graph-paper/)
-- and `fontgen.php` from [retro-cedule-font]() project (which can export to this format from DXF)
+- and `fontgen.php` from [retro-cedule-font](https://github.com/severak/retro-cedule-font) project (which can export to this format from DXF)
 
 with following limitations:
 
